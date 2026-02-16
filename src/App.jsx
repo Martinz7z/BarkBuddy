@@ -1,56 +1,768 @@
-import React, { useState } from 'react';
-import LoginPage from './pages/auth/LoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
-function App() {
-  const [showRegister, setShowRegister] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+/**
+ * BarkBuddy - Frontend only (mock auth)
+ * Pages:
+ *  - Login
+ *  - Register
+ *  - Main app (tabs: Swipe, Filter, Messages)
+ *
+ * Later: replace mock auth with backend JWT.
+ */
 
-  const handleLogin = (email, password, userType) => {
-    console.log(`Login: ${email} as ${userType}`);
-    setIsLoggedIn(true);
-  };
+export default function App() {
+  // "auth" state (mock)
+  const [user, setUser] = useState(null); // { name, email, role }
+  const [authView, setAuthView] = useState("login"); // "login" | "register"
 
-  const handleRegister = (userData) => {
-    console.log('Register:', userData);
-    setIsLoggedIn(true);
-  };
+  // app tab state
+  const [tab, setTab] = useState("swipe"); // "swipe" | "filter" | "messages"
 
-  if (isLoggedIn) {
+  // mock dog data (later fetch from API)
+  const dogs = useMemo(
+    () => [
+      {
+        id: 1,
+        name: "Buddy",
+        breed: "Labrador",
+        age: "2 years",
+        shelter: "Dundalk Dog Shelter",
+        photos: [
+          "https://placedog.net/600/420?id=101",
+          "https://placedog.net/600/420?id=102",
+          "https://placedog.net/600/420?id=103",
+        ],
+      },
+      {
+        id: 2,
+        name: "Luna",
+        breed: "Border Collie",
+        age: "1 year",
+        shelter: "Dogs Trust Dublin",
+        photos: [
+          "https://placedog.net/600/420?id=201",
+          "https://placedog.net/600/420?id=202",
+          "https://placedog.net/600/420?id=203",
+        ],
+      },
+      {
+        id: 3,
+        name: "Max",
+        breed: "Staffy",
+        age: "4 years",
+        shelter: "Dublin SPCA",
+        photos: [
+          "https://placedog.net/600/420?id=301",
+          "https://placedog.net/600/420?id=302",
+        ],
+      },
+    ],
+    []
+  );
+
+  // If not logged in -> show auth screens
+  if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card rounded-card p-8 text-center max-w-md w-full shadow-card">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary text-2xl">🐕</span>
+      <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-[var(--border)]">
+          <div className="mb-6 text-center">
+            <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
+              BarkBuddy
+            </div>
+            <div className="text-sm text-[var(--bark-muted-text)] mt-1">
+              Find a dog that fits your lifestyle.
+            </div>
           </div>
-          <h1 className="text-2xl font-heading font-semibold text-text mb-2">
-            Successfully Logged In!
-          </h1>
-          <p className="text-muted mb-6">
-            Bark Buddy dashboard would appear here.
-          </p>
-          <button
-            onClick={() => setIsLoggedIn(false)}
-            className="px-6 py-3 bg-primary text-white rounded-button hover:bg-primary/90 transition-colors shadow-button"
-          >
-            Log Out
-          </button>
+
+          {authView === "login" ? (
+            <LoginCard
+              onLogin={(u) => {
+                setUser(u);
+                setTab("swipe");
+              }}
+              onSwitch={() => setAuthView("register")}
+            />
+          ) : (
+            <RegisterCard
+              onRegister={(u) => {
+                setUser(u);
+                setTab("swipe");
+              }}
+              onSwitch={() => setAuthView("login")}
+            />
+          )}
         </div>
       </div>
     );
   }
 
-  return showRegister ? (
-    <RegisterPage 
-      onGoToLogin={() => setShowRegister(false)}
-      onRegister={handleRegister}
-    />
-  ) : (
-    <LoginPage 
-      onGoToRegister={() => setShowRegister(true)}
-      onLogin={handleLogin}
-    />
+  // Logged in -> show app shell
+  return (
+    <div className="h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col">
+      {/* Top bar */}
+      <header className="px-4 py-3 bg-white border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <div className="font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
+            BarkBuddy
+          </div>
+          <div className="text-xs text-[var(--bark-muted-text)]">
+            Logged in as {user.name} ({user.role})
+          </div>
+        </div>
+
+        {/* Only show Settings icon on Messages tab (as you wanted earlier) */}
+        {tab === "messages" ? (
+          <button
+            className="px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bark-secondary)]"
+            onClick={() => alert("Settings modal comes later (profile + logout).")}
+            aria-label="Settings"
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
+      </header>
+
+      {/* Content */}
+      <main className="flex-1 overflow-y-auto p-4">
+        {tab === "swipe" && <SwipePage dogs={dogs} />}
+        {tab === "filter" && (
+          <FilterPage
+            onApply={() => {
+              // As you requested: applying filters brings user back to Swipe
+              setTab("swipe");
+            }}
+          />
+        )}
+        {tab === "messages" && (
+          <MessagesPage
+            user={user}
+            onLogout={() => {
+              setUser(null);
+              setAuthView("login");
+            }}
+          />
+        )}
+      </main>
+
+      {/* Bottom tabs */}
+      <nav className="bg-white border-t border-[var(--border)] px-3 py-2">
+        <div className="grid grid-cols-3 gap-2">
+          <TabButton active={tab === "filter"} onClick={() => setTab("filter")} label="Filter" icon="🔎" />
+          <TabButton active={tab === "swipe"} onClick={() => setTab("swipe")} label="Swipe" icon="🐶" />
+          <TabButton active={tab === "messages"} onClick={() => setTab("messages")} label="Messages" icon="💬" />
+        </div>
+      </nav>
+    </div>
   );
 }
 
-export default App;
+/* ---------------- Auth Cards ---------------- */
+
+function LoginCard({ onLogin, onSwitch }) {
+  const [role, setRole] = useState("Basic User");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+        Sign In
+      </h2>
+      <p className="text-sm text-[var(--bark-muted-text)] mb-4">
+        Enter your details to continue.
+      </p>
+
+      <label className="block text-sm font-medium mb-1">Account type</label>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <RoleButton active={role === "Basic User"} onClick={() => setRole("Basic User")} label="Basic User" />
+        <RoleButton active={role === "Shelter"} onClick={() => setRole("Shelter")} label="Shelter" />
+      </div>
+
+      <label className="block text-sm font-medium mb-1">Email</label>
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+        placeholder="you@example.com"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <label className="block text-sm font-medium mb-1">Password</label>
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-4"
+        placeholder="••••••••"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
+        onClick={() => {
+          if (!email || !password) return alert("Please enter email and password.");
+          onLogin({ name: email.split("@")[0], email, role });
+        }}
+      >
+        Sign In
+      </button>
+
+      <div className="text-center text-sm text-[var(--bark-muted-text)] mt-4">
+        Don’t have an account?{" "}
+        <button className="text-[var(--bark-primary)] font-semibold" onClick={onSwitch}>
+          Sign up
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RegisterCard({ onRegister, onSwitch }) {
+  const [role, setRole] = useState("Basic User");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-1" style={{ fontFamily: "var(--font-heading)" }}>
+        Create Account
+      </h2>
+      <p className="text-sm text-[var(--bark-muted-text)] mb-4">
+        Register to start matching with dogs.
+      </p>
+
+      <label className="block text-sm font-medium mb-1">Account type</label>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <RoleButton active={role === "Basic User"} onClick={() => setRole("Basic User")} label="Basic User" />
+        <RoleButton active={role === "Shelter"} onClick={() => setRole("Shelter")} label="Shelter" />
+      </div>
+
+      <label className="block text-sm font-medium mb-1">Name</label>
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+        placeholder="Martin"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      <label className="block text-sm font-medium mb-1">Email</label>
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+        placeholder="you@example.com"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <label className="block text-sm font-medium mb-1">Password</label>
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-4"
+        placeholder="••••••••"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button
+        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
+        onClick={() => {
+          if (!name || !email || !password) return alert("Please fill in all fields.");
+          onRegister({ name, email, role });
+        }}
+      >
+        Create Account
+      </button>
+
+      <div className="text-center text-sm text-[var(--bark-muted-text)] mt-4">
+        Already have an account?{" "}
+        <button className="text-[var(--bark-primary)] font-semibold" onClick={onSwitch}>
+          Sign in
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Tabs & Pages ---------------- */
+
+function TabButton({ active, onClick, label, icon }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-xl py-2 px-2 flex flex-col items-center justify-center border ${
+        active
+          ? "bg-[var(--bark-primary)] text-white border-[var(--bark-primary)]"
+          : "bg-white text-[var(--bark-text)] border-[var(--border)]"
+      }`}
+    >
+      <div className="text-lg">{icon}</div>
+      <div className="text-xs font-medium">{label}</div>
+    </button>
+  );
+}
+
+function RoleButton({ active, onClick, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`p-3 rounded-xl border text-sm font-medium ${
+        active
+          ? "bg-[var(--bark-primary)] text-white border-[var(--bark-primary)]"
+          : "bg-white border-[var(--border)]"
+      }`}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
+function SwipePage({ dogs }) {
+  const [index, setIndex] = useState(0);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  const current = dogs[index];
+  const next = dogs[(index + 1) % dogs.length];
+  const third = dogs[(index + 2) % dogs.length];
+
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-250, 0, 250], [-12, 0, 12]);
+  const likeOpacity = useTransform(x, [0, 120], [0, 1]);
+  const nopeOpacity = useTransform(x, [-120, 0], [1, 0]);
+
+  useEffect(() => setPhotoIndex(0), [index]);
+
+  const goNextDog = () => {
+    setIndex((i) => (i + 1) % dogs.length);
+    x.set(0);
+  };
+
+  const swipeOut = async (direction) => {
+    const toX = direction === "right" ? 420 : -420;
+    await animate(x, toX, { type: "spring", stiffness: 260, damping: 22 });
+    goNextDog();
+  };
+
+  const onDragEnd = (_, info) => {
+    const offset = info.offset.x;
+    const velocity = info.velocity.x;
+
+    if (offset > 140 || velocity > 900) return swipeOut("right");
+    if (offset < -140 || velocity < -900) return swipeOut("left");
+
+    animate(x, 0, { type: "spring", stiffness: 260, damping: 20 });
+  };
+
+  const nextPhoto = () =>
+    setPhotoIndex((i) => (i + 1) % current.photos.length);
+  const prevPhoto = () =>
+    setPhotoIndex(
+      (i) => (i - 1 + current.photos.length) % current.photos.length
+    );
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2
+          className="text-2xl font-bold"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          Discover
+        </h2>
+        <div className="text-xs text-[var(--bark-muted-text)]">
+          {index + 1}/{dogs.length}
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center">
+        <div className="relative w-full max-w-md aspect-[9/16]">
+          {third && (
+            <div
+              className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-sm overflow-hidden"
+              style={{ transform: "scale(0.92) translateY(24px)" }}
+            >
+              <CardMedia dog={third} photoIndex={0} minimal />
+            </div>
+          )}
+
+          {next && (
+            <div
+              className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow overflow-hidden"
+              style={{ transform: "scale(0.96) translateY(12px)" }}
+            >
+              <CardMedia dog={next} photoIndex={0} minimal />
+            </div>
+          )}
+
+          <motion.div
+            className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-xl overflow-hidden touch-pan-y"
+            style={{ x, rotate }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.9}
+            onDragEnd={onDragEnd}
+          >
+            <motion.div
+              className="absolute top-5 left-5 z-10 px-4 py-2 rounded-xl font-bold border-2 border-green-500 text-green-600 bg-white/80 backdrop-blur"
+              style={{ opacity: likeOpacity }}
+            >
+              LIKE
+            </motion.div>
+            <motion.div
+              className="absolute top-5 right-5 z-10 px-4 py-2 rounded-xl font-bold border-2 border-red-500 text-red-600 bg-white/80 backdrop-blur"
+              style={{ opacity: nopeOpacity }}
+            >
+              NOPE
+            </motion.div>
+
+            <div className="relative h-[68%]">
+              <img
+                src={current.photos[photoIndex]}
+                alt={`${current.name}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+               e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
+                }}
+                />
+                
+              
+
+              {current.photos.length > 1 && (
+                <>
+                  <button
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/75 backdrop-blur rounded-full px-3 py-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prevPhoto();
+                    }}
+                    aria-label="Previous photo"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/75 backdrop-blur rounded-full px-3 py-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nextPhoto();
+                    }}
+                    aria-label="Next photo"
+                  >
+                    ▶
+                  </button>
+                </>
+              )}
+
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-1">
+                {current.photos.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === photoIndex ? "w-6 bg-white" : "w-2 bg-white/60"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="h-[32%] p-4 flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-xl font-semibold leading-tight">
+                      {current.name}
+                    </h3>
+                    <p className="text-sm text-[var(--bark-muted-text)]">
+                      {current.breed} • {current.age}
+                    </p>
+                  </div>
+
+                  <span className="text-xs px-2 py-1 rounded-full bg-[var(--bark-accent)] text-white self-start">
+                    Shelter
+                  </span>
+                </div>
+
+                <p className="text-sm text-[var(--bark-muted-text)] mt-2">
+                  {current.shelter}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <button
+                  className="py-3 rounded-2xl border border-[var(--border)] bg-white hover:bg-[var(--bark-secondary)]"
+                  onClick={() => swipeOut("left")}
+                >
+                  Skip
+                </button>
+                <button
+                  className="py-3 rounded-2xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
+                  onClick={() => swipeOut("right")}
+                >
+                  Like
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <div className="h-3" />
+    </div>
+  );
+}
+
+function CardMedia({ dog, photoIndex, minimal }) {
+  return (
+    <div className="relative h-full">
+      <img
+        src={dog.photos[photoIndex] || dog.photos[0]}
+        alt={dog.name}
+        className="w-full h-full object-cover"
+        onError={(e) => {
+    e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
+  }}
+      />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 to-transparent" />
+      {minimal && (
+        <div className="absolute bottom-4 left-4 text-white">
+          <div className="font-semibold">{dog.name}</div>
+          <div className="text-xs opacity-90">{dog.breed}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterPage({ onApply }) {
+  const [breed, setBreed] = useState("");
+  const [size, setSize] = useState("Any");
+  const [age, setAge] = useState("Any");
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+        Filters
+      </h2>
+
+      <div className="bg-white rounded-2xl shadow border border-[var(--border)] p-4">
+        <label className="block text-sm font-medium mb-1">Breed</label>
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+          placeholder="e.g. Labrador"
+          value={breed}
+          onChange={(e) => setBreed(e.target.value)}
+        />
+
+        <label className="block text-sm font-medium mb-1">Size</label>
+        <select
+          className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+          value={size}
+          onChange={(e) => setSize(e.target.value)}
+        >
+          <option>Any</option>
+          <option>Small</option>
+          <option>Medium</option>
+          <option>Large</option>
+        </select>
+
+        <label className="block text-sm font-medium mb-1">Age</label>
+        <select
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          value={age}
+          onChange={(e) => setAge(e.target.value)}
+        >
+          <option>Any</option>
+          <option>Puppy</option>
+          <option>Adult</option>
+          <option>Senior</option>
+        </select>
+
+        <button
+          className="w-full mt-4 py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
+          onClick={() => {
+            // For now we just demo the behaviour.
+            alert(`Filters applied:\nBreed: ${breed || "Any"}\nSize: ${size}\nAge: ${age}`);
+            onApply();
+          }}
+        >
+          Apply Filters
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MessagesPage({ user, onLogout }) {
+  const [active, setActive] = useState("dundalk");
+  const [mode, setMode] = useState("list"); // mobile mode: list or chat
+
+  // conversations now live in state so we can append messages
+  const [conversations, setConversations] = useState(() => ({
+    dundalk: {
+      name: "Dundalk Dog Shelter",
+      messages: [
+        { from: "shelter", text: "Hi! Buddy is still available 😊", ts: Date.now() - 200000 },
+        { from: "user", text: "Great — can I arrange a visit?", ts: Date.now() - 150000 },
+      ],
+    },
+    dogstrust: {
+      name: "Dogs Trust Dublin",
+      messages: [
+        { from: "shelter", text: "Hello! Luna has a calm temperament.", ts: Date.now() - 160000 },
+        { from: "user", text: "Is she okay with kids?", ts: Date.now() - 120000 },
+      ],
+    },
+    dublinsPCA: {
+      name: "Dublin SPCA",
+      messages: [
+        { from: "shelter", text: "Max is house-trained and loves walks.", ts: Date.now() - 140000 },
+        { from: "user", text: "Perfect, what’s the adoption process?", ts: Date.now() - 100000 },
+      ],
+    },
+  }));
+
+  const convo = conversations[active];
+  const [draft, setDraft] = useState("");
+
+  // auto-scroll to bottom on new message / thread change
+  const bottomRef = useRef(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [active, convo.messages.length]);
+
+  const sendMessage = () => {
+    const text = draft.trim();
+    if (!text) return;
+
+    setConversations((prev) => ({
+  ...prev,
+  [active]: {
+    ...prev[active],
+    messages: [...prev[active].messages, { from: "user", text, ts: Date.now() }],
+  },
+}));
+
+    setDraft("");
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
+          Messages
+        </h2>
+        <button
+          className="text-sm px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-white"
+          onClick={onLogout}
+        >
+          Log out
+        </button>
+      </div>
+
+      {/* Main container */}
+      <div className="flex-1 bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex">
+        {/* Conversation list */}
+        <div
+          className={`w-full md:w-80 border-r border-[var(--border)] ${
+            mode === "chat" ? "hidden md:block" : "block"
+          }`}
+        >
+          <div className="px-4 py-3 font-semibold border-b border-[var(--border)]">
+            Shelters
+          </div>
+
+          <div className="overflow-y-auto h-full">
+            {Object.entries(conversations).map(([key, c]) => (
+              <button
+                key={key}
+                className={`w-full text-left px-4 py-3 border-b border-[var(--border)] ${
+                  active === key ? "bg-[var(--bark-secondary)]" : "bg-white"
+                }`}
+                onClick={() => {
+                  setActive(key);
+                  setMode("chat");
+                }}
+              >
+                <div className="text-sm font-semibold">{c.name}</div>
+                <div className="text-xs text-[var(--bark-muted-text)] truncate">
+                  {c.messages[c.messages.length - 1]?.text || "No messages yet"}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat panel */}
+        <div className={`flex-1 flex flex-col ${mode === "list" ? "hidden md:flex" : "flex"}`}>
+          <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-3">
+            <button
+              className="md:hidden px-3 py-2 rounded-xl border border-[var(--border)]"
+              onClick={() => setMode("list")}
+            >
+              ←
+            </button>
+            <div className="font-semibold">{convo.name}</div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 p-4 space-y-2 overflow-y-auto bg-[var(--bark-secondary)]">
+            {convo.messages.map((m, idx) => {
+              const isUser = m.from === "user";
+              return (
+                <div
+                  key={`${m.ts}-${idx}`}
+                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
+                    isUser
+                      ? "ml-auto bg-[var(--bark-primary)] text-white"
+                      : "bg-white text-[var(--bark-text)]"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <form
+            className="p-3 border-t border-[var(--border)] flex gap-2 bg-white"
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+          >
+            <input
+              className="flex-1 p-3 rounded-2xl border border-[var(--border)]"
+              placeholder={`Message ${convo.name}...`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                // allow Enter to send, Shift+Enter for newline (optional)
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
+            <button
+              type="submit"
+              className="px-5 rounded-2xl text-white font-semibold bg-[var(--bark-accent)]"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <p className="text-xs text-[var(--bark-muted-text)] mt-3">
+        (Local demo state — backend persistence next.)
+      </p>
+    </div>
+  );
+}
+

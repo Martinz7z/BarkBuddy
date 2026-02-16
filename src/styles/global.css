@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bark-primary: #6B8E23;
+  --bark-secondary: #F5F1E3;
+  --bark-accent: #F4A259;
+  --bark-text: #333333;
+  --bark-muted-text: #555B6E;
+  --border: rgba(107, 142, 35, 0.2);
+  --font-heading: 'Raleway', sans-serif;
+}
+
 @layer base {
   html {
     font-family: 'Poppins', sans-serif;
