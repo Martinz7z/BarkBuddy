@@ -1,23 +1,62 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
-/**
- * BarkBuddy - Frontend only (mock auth)
- * Pages:
- *  - Login
- *  - Register
- *  - Main app (tabs: Swipe, Filter, Messages)
- *
- * Later: replace mock auth with backend JWT.
- */
+
+
+const API_BASE = "http://localhost:4000";
+
+function roleUiToApi(roleUi) {
+  return roleUi === "Shelter" ? "SHELTER" : "BASIC_USER";
+}
+
+function roleApiToUi(roleApi) {
+  return roleApi === "SHELTER" ? "Shelter" : "Basic User";
+}
 
 export default function App() {
   // "auth" state (mock)
-  const [user, setUser] = useState(null); // { name, email, role }
+  const [user, setUser] = useState(null); // { id, name, email, role }
   const [authView, setAuthView] = useState("login"); // "login" | "register"
+  const [token, setToken] = useState(() => localStorage.getItem("bb_token") || "");
+  const [authLoading, setAuthLoading] = useState(false);
 
   // app tab state
   const [tab, setTab] = useState("swipe"); // "swipe" | "filter" | "messages"
+
+  useEffect(() => {
+  const restore = async () => {
+    if (!token) return;
+
+    try {
+      setAuthLoading(true);
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        // token invalid/expired
+        localStorage.removeItem("bb_token");
+        setToken("");
+        setUser(null);
+        return;
+      }
+
+      const data = await res.json();
+      const apiUser = data.user;
+      setUser({
+        ...apiUser,
+        role: roleApiToUi(apiUser.role),
+      });
+    } catch (e) {
+      // backend down / network issue
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  restore();
+}, [token]);
 
   // mock dog data (later fetch from API)
   const dogs = useMemo(
@@ -75,19 +114,27 @@ export default function App() {
             </div>
           </div>
 
-          {authView === "login" ? (
+          {authLoading ? (
+          <div className="text-center text-sm text-[var(--bark-muted-text)] py-8">
+              Restoring session...
+            </div>
+            ) : authView === "login" ? (
             <LoginCard
-              onLogin={(u) => {
-                setUser(u);
-                setTab("swipe");
-              }}
+              onLogin={({ user, token }) => {
+            localStorage.setItem("bb_token", token);
+              setToken(token);
+              setUser(user);
+              setTab("swipe");
+            }}
               onSwitch={() => setAuthView("register")}
             />
           ) : (
             <RegisterCard
-              onRegister={(u) => {
-                setUser(u);
-                setTab("swipe");
+              onRegister={({ user, token }) => {
+              localStorage.setItem("bb_token", token);
+               setToken(token);
+               setUser(user);
+               setTab("swipe");
               }}
               onSwitch={() => setAuthView("login")}
             />
@@ -97,7 +144,7 @@ export default function App() {
     );
   }
 
-  // Logged in -> show app shell
+  
   return (
     <div className="h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col">
       {/* Top bar */}
@@ -132,7 +179,7 @@ export default function App() {
         {tab === "filter" && (
           <FilterPage
             onApply={() => {
-              // As you requested: applying filters brings user back to Swipe
+              
               setTab("swipe");
             }}
           />
@@ -141,6 +188,8 @@ export default function App() {
           <MessagesPage
             user={user}
             onLogout={() => {
+            localStorage.removeItem("bb_token");
+              setToken("");
               setUser(null);
               setAuthView("login");
             }}
@@ -166,6 +215,7 @@ function LoginCard({ onLogin, onSwitch }) {
   const [role, setRole] = useState("Basic User");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <div>
@@ -201,13 +251,45 @@ function LoginCard({ onLogin, onSwitch }) {
       />
 
       <button
-        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
-        onClick={() => {
+        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95 disabled:opacity-60"
+        disabled={submitting}
+        onClick={async () => {
           if (!email || !password) return alert("Please enter email and password.");
-          onLogin({ name: email.split("@")[0], email, role });
+
+          try {
+            setSubmitting(true);
+            const res = await fetch(`${API_BASE}/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+              return alert(data?.error || "Login failed.");
+            }
+
+            // Optional: ensure role selection matches account role (helps UX)
+            const apiRoleUi = roleApiToUi(data.user.role);
+            if (apiRoleUi !== role) {
+              // not blocking, but helpful feedback
+              // you can remove this check if you want
+              console.warn("Role selected does not match account role. Using account role.");
+            }
+
+            onLogin({
+              user: { ...data.user, role: roleApiToUi(data.user.role) },
+              token: data.token,
+            });
+          } catch (e) {
+            alert("Could not reach server. Is the backend running?");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
-        Sign In
+        {submitting ? "Signing in..." : "Sign In"}
       </button>
 
       <div className="text-center text-sm text-[var(--bark-muted-text)] mt-4">
@@ -225,6 +307,10 @@ function RegisterCard({ onRegister, onSwitch }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [shelterName, setShelterName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const isShelter = role === "Shelter";
 
   return (
     <div>
@@ -249,6 +335,18 @@ function RegisterCard({ onRegister, onSwitch }) {
         onChange={(e) => setName(e.target.value)}
       />
 
+      {isShelter && (
+        <>
+          <label className="block text-sm font-medium mb-1">Shelter name</label>
+          <input
+            className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+            placeholder="Dundalk Dog Rescue"
+            value={shelterName}
+            onChange={(e) => setShelterName(e.target.value)}
+          />
+        </>
+      )}
+
       <label className="block text-sm font-medium mb-1">Email</label>
       <input
         className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
@@ -261,20 +359,54 @@ function RegisterCard({ onRegister, onSwitch }) {
       <label className="block text-sm font-medium mb-1">Password</label>
       <input
         className="w-full p-3 rounded-xl border border-[var(--border)] mb-4"
-        placeholder="••••••••"
+        placeholder="Minimum 8 characters"
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
 
       <button
-        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
-        onClick={() => {
+        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95 disabled:opacity-60"
+        disabled={submitting}
+        onClick={async () => {
           if (!name || !email || !password) return alert("Please fill in all fields.");
-          onRegister({ name, email, role });
+          if (password.length < 8) return alert("Password must be at least 8 characters.");
+          if (isShelter && shelterName.trim().length < 2) return alert("Please enter your shelter name.");
+
+          try {
+            setSubmitting(true);
+
+            const res = await fetch(`${API_BASE}/auth/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name,
+                email,
+                password,
+                role: roleUiToApi(role),
+                shelterName: isShelter ? shelterName.trim() : undefined,
+              }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+              // Prisma unique constraint errors arrive as 409 from our backend
+              return alert(data?.error || "Registration failed.");
+            }
+
+            onRegister({
+              user: { ...data.user, role: roleApiToUi(data.user.role) },
+              token: data.token,
+            });
+          } catch (e) {
+            alert("Could not reach server. Is the backend running?");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
-        Create Account
+        {submitting ? "Creating..." : "Create Account"}
       </button>
 
       <div className="text-center text-sm text-[var(--bark-muted-text)] mt-4">
@@ -583,7 +715,7 @@ function FilterPage({ onApply }) {
         <button
           className="w-full mt-4 py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
           onClick={() => {
-            // For now we just demo the behaviour.
+            
             alert(`Filters applied:\nBreed: ${breed || "Any"}\nSize: ${size}\nAge: ${age}`);
             onApply();
           }}
@@ -599,7 +731,7 @@ function MessagesPage({ user, onLogout }) {
   const [active, setActive] = useState("dundalk");
   const [mode, setMode] = useState("list"); // mobile mode: list or chat
 
-  // conversations now live in state so we can append messages
+  
   const [conversations, setConversations] = useState(() => ({
     dundalk: {
       name: "Dundalk Dog Shelter",
