@@ -11,6 +11,18 @@ enum Role {
   SHELTER
 }
 
+enum AgeCategory {
+  PUPPY
+  ADULT
+  SENIOR
+}
+
+enum SizeCategory {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -19,6 +31,7 @@ model User {
   role         Role     @default(BASIC_USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  dogs Dog[]
 
   shelterProfile ShelterProfile?
 }
@@ -33,4 +46,20 @@ model ShelterProfile {
   updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Dog {
+  id          String       @id @default(cuid())
+  name        String
+  breed       String
+  description String?
+  ageCategory AgeCategory
+  sizeCategory SizeCategory
+  archived    Boolean      @default(false)
+
+  shelter     User         @relation(fields: [shelterId], references: [id])
+  shelterId   String
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
