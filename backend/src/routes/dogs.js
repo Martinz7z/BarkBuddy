@@ -53,7 +53,7 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", requireAuth, requireRole("SHELTER"), async (req, res) => {
   try {
-    const { name, breed, description, ageCategory, sizeCategory } = req.body;
+    const { name, breed, description, ageCategory, sizeCategory, imageUrl } = req.body;
 
     const dog = await prisma.dog.create({
       data: {
@@ -62,6 +62,7 @@ router.post("/", requireAuth, requireRole("SHELTER"), async (req, res) => {
         description,
         ageCategory,
         sizeCategory,
+        imageUrl,
         shelterId: req.user.id,
       },
     });
@@ -95,7 +96,7 @@ router.patch("/:id", requireAuth, requireRole("SHELTER"), async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Dog not found." });
     if (existing.shelterId !== req.user.id) return res.status(403).json({ error: "Not allowed." });
 
-    const { name, breed, description, ageCategory, sizeCategory } = req.body;
+    const { name, breed, description, ageCategory, sizeCategory, imageUrl } = req.body;
 
     const dog = await prisma.dog.update({
       where: { id },

@@ -460,9 +460,12 @@ function SwipePage({ dogs }) {
   );
 }
 
-const photos = Array.isArray(current.photos) && current.photos.length > 0
-  ? current.photos
-  : ["https://placehold.co/800x1200?text=BarkBuddy"];
+const photos =
+  Array.isArray(current?.photos) && current.photos.length > 0
+    ? current.photos
+    : current?.imageUrl
+      ? [current.imageUrl]
+      : ["https://placehold.co/800x1200?text=BarkBuddy"];
   const next = dogs[(index + 1) % dogs.length];
   const third = dogs[(index + 2) % dogs.length];
 
@@ -497,9 +500,7 @@ const photos = Array.isArray(current.photos) && current.photos.length > 0
   const nextPhoto = () =>
     setPhotoIndex((i) => (i + 1) % photos.length);
   const prevPhoto = () =>
-    setPhotoIndex(
-      (i) => (i - 1 + current.photos.length) % current.photos.length
-    );
+  setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
 
   return (
     <div className="h-full flex flex-col">
@@ -558,7 +559,7 @@ const photos = Array.isArray(current.photos) && current.photos.length > 0
 
             <div className="relative h-[68%]">
               <img
-                src={photos[photoIndex]}
+                src={photos[photoIndex] || photos[0]}
                 alt={`${current.name}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -653,8 +654,10 @@ const photos = Array.isArray(current.photos) && current.photos.length > 0
 
 function CardMedia({ dog, photoIndex, minimal }) {
   const photos =
-    Array.isArray(dog?.photos) && dog.photos.length > 0
-      ? dog.photos
+  Array.isArray(dog?.photos) && dog.photos.length > 0
+    ? dog.photos
+    : dog?.imageUrl
+      ? [dog.imageUrl]
       : ["https://placehold.co/800x1200?text=BarkBuddy"];
 
   return (
