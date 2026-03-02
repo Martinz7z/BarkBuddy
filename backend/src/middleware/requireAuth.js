@@ -1,16 +1,22 @@
-import { verifyAccessToken } from "../auth/jwt.js";
+import jwt from "jsonwebtoken";
 
 export function requireAuth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing Authorization header" });
-  }
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
 
-  const token = header.slice("Bearer ".length);
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
   try {
-    req.user = verifyAccessToken(token); // { sub, role }
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    // payload.sub is your user id (from your login/register)
+    req.user = {
+      id: payload.sub,
+      role: payload.role,
+    };
+
     next();
-  } catch {
+  } catch (err) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
