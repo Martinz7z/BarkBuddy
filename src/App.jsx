@@ -3,7 +3,7 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
 
 
-const API_BASE = "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
 
 function roleUiToApi(roleUi) {
   return roleUi === "Shelter" ? "SHELTER" : "BASIC_USER";
@@ -59,46 +59,32 @@ export default function App() {
 }, [token]);
 
   // mock dog data (later fetch from API)
-  const dogs = useMemo(
-    () => [
-      {
-        id: 1,
-        name: "Buddy",
-        breed: "Labrador",
-        age: "2 years",
-        shelter: "Dundalk Dog Shelter",
-        photos: [
-          "https://placedog.net/600/420?id=101",
-          "https://placedog.net/600/420?id=102",
-          "https://placedog.net/600/420?id=103",
-        ],
-      },
-      {
-        id: 2,
-        name: "Luna",
-        breed: "Border Collie",
-        age: "1 year",
-        shelter: "Dogs Trust Dublin",
-        photos: [
-          "https://placedog.net/600/420?id=201",
-          "https://placedog.net/600/420?id=202",
-          "https://placedog.net/600/420?id=203",
-        ],
-      },
-      {
-        id: 3,
-        name: "Max",
-        breed: "Staffy",
-        age: "4 years",
-        shelter: "Dublin SPCA",
-        photos: [
-          "https://placedog.net/600/420?id=301",
-          "https://placedog.net/600/420?id=302",
-        ],
-      },
-    ],
-    []
-  );
+   const [dogs, setDogs] = useState([]);
+  const [dogsLoading, setDogsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadDogs = async () => {
+      try {
+        setDogsLoading(true);
+        const res = await fetch(`${API_BASE}/dogs`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error(data);
+          return;
+        }
+
+        // backend returns { dogs: [...] }
+        setDogs(data.dogs || []);
+      } catch (e) {
+        console.error("Failed to load dogs", e);
+      } finally {
+        setDogsLoading(false);
+      }
+    };
+
+    loadDogs();
+  }, []);
 
   // If not logged in -> show auth screens
   if (!user) {
@@ -175,7 +161,17 @@ export default function App() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-4">
-        {tab === "swipe" && <SwipePage dogs={dogs} />}
+        {tab === "swipe" && (
+         dogsLoading ? (
+            <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">Loading dogs...</div>
+          ) : dogs.length === 0 ? (
+          <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
+           No dogs available yet. (Shelters can add dogs in the admin flow.)
+           </div>
+             ) : (
+          <SwipePage dogs={dogs} />
+            )
+            )}
         {tab === "filter" && (
           <FilterPage
             onApply={() => {
@@ -273,10 +269,8 @@ function LoginCard({ onLogin, onSwitch }) {
             // Optional: ensure role selection matches account role (helps UX)
             const apiRoleUi = roleApiToUi(data.user.role);
             if (apiRoleUi !== role) {
-              // not blocking, but helpful feedback
-              // you can remove this check if you want
-              console.warn("Role selected does not match account role. Using account role.");
-            }
+            return alert(`This account is a ${apiRoleUi} account. Please select "${apiRoleUi}" and try again.`);
+          }
 
             onLogin({
               user: { ...data.user, role: roleApiToUi(data.user.role) },
@@ -458,6 +452,17 @@ function SwipePage({ dogs }) {
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const current = dogs[index];
+  if (!current) {
+  return (
+    <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
+      No dogs to show yet.
+    </div>
+  );
+}
+
+const photos = Array.isArray(current.photos) && current.photos.length > 0
+  ? current.photos
+  : ["https://placehold.co/800x1200?text=BarkBuddy"];
   const next = dogs[(index + 1) % dogs.length];
   const third = dogs[(index + 2) % dogs.length];
 
@@ -490,7 +495,7 @@ function SwipePage({ dogs }) {
   };
 
   const nextPhoto = () =>
-    setPhotoIndex((i) => (i + 1) % current.photos.length);
+    setPhotoIndex((i) => (i + 1) % photos.length);
   const prevPhoto = () =>
     setPhotoIndex(
       (i) => (i - 1 + current.photos.length) % current.photos.length
@@ -553,7 +558,7 @@ function SwipePage({ dogs }) {
 
             <div className="relative h-[68%]">
               <img
-                src={current.photos[photoIndex]}
+                src={photos[photoIndex]}
                 alt={`${current.name}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -563,7 +568,7 @@ function SwipePage({ dogs }) {
                 
               
 
-              {current.photos.length > 1 && (
+              {photos.length > 1 && (
                 <>
                   <button
                     className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/75 backdrop-blur rounded-full px-3 py-2"
@@ -589,7 +594,7 @@ function SwipePage({ dogs }) {
               )}
 
               <div className="absolute top-3 left-1/2 -translate-x-1/2 flex gap-1">
-                {current.photos.map((_, i) => (
+                {photos.map((_, i) => (
                   <div
                     key={i}
                     className={`h-1.5 rounded-full transition-all ${
@@ -618,7 +623,7 @@ function SwipePage({ dogs }) {
                 </div>
 
                 <p className="text-sm text-[var(--bark-muted-text)] mt-2">
-                  {current.shelter}
+                  {current.shelterName || "Unknown shelter"}
                 </p>
               </div>
 
@@ -647,21 +652,26 @@ function SwipePage({ dogs }) {
 }
 
 function CardMedia({ dog, photoIndex, minimal }) {
+  const photos =
+    Array.isArray(dog?.photos) && dog.photos.length > 0
+      ? dog.photos
+      : ["https://placehold.co/800x1200?text=BarkBuddy"];
+
   return (
     <div className="relative h-full">
       <img
-        src={dog.photos[photoIndex] || dog.photos[0]}
-        alt={dog.name}
+        src={photos[photoIndex] || photos[0]}
+        alt={dog?.name || "Dog"}
         className="w-full h-full object-cover"
         onError={(e) => {
-    e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
-  }}
+          e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
+        }}
       />
       <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 to-transparent" />
       {minimal && (
         <div className="absolute bottom-4 left-4 text-white">
-          <div className="font-semibold">{dog.name}</div>
-          <div className="text-xs opacity-90">{dog.breed}</div>
+          <div className="font-semibold">{dog?.name}</div>
+          <div className="text-xs opacity-90">{dog?.breed}</div>
         </div>
       )}
     </div>

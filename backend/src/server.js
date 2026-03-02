@@ -12,6 +12,13 @@ dotenv.config();
 
 const app = express();
 
+app.disable("etag");
+
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 app.use(helmet());
 app.use(express.json());
 

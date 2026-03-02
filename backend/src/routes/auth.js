@@ -74,7 +74,8 @@ authRouter.post("/login", async (req, res) => {
 });
 
 authRouter.get("/me", requireAuth, async (req, res) => {
-  const userId = req.user.sub;
+  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
+  const userId = req.user.id;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
