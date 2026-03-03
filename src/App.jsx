@@ -21,7 +21,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
 
   // app tab state
-  const [tab, setTab] = useState("swipe"); // "swipe" | "filter" | "messages"
+  const [tab, setTab] = useState("swipe"); // "swipe" | "filter" | "messages" | "admin"
+  const isShelter = user?.role === "Shelter";
 
   useEffect(() => {
   const restore = async () => {
@@ -191,14 +192,22 @@ export default function App() {
             }}
           />
         )}
+        {tab === "admin" && isShelter && (
+        <AdminPage token={token} apiBase={API_BASE} />
+      )}
+        
+
+
+      
       </main>
 
       {/* Bottom tabs */}
       <nav className="bg-white border-t border-[var(--border)] px-3 py-2">
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid ${isShelter ? "grid-cols-4" : "grid-cols-3"} gap-2`}>
           <TabButton active={tab === "filter"} onClick={() => setTab("filter")} label="Filter" icon="🔎" />
           <TabButton active={tab === "swipe"} onClick={() => setTab("swipe")} label="Swipe" icon="🐶" />
           <TabButton active={tab === "messages"} onClick={() => setTab("messages")} label="Messages" icon="💬" />
+          {isShelter && (<TabButton active={tab === "admin"} onClick={() => setTab("admin")} label="Admin" icon="🏠" />)}
         </div>
       </nav>
     </div>
@@ -903,6 +912,7 @@ function MessagesPage({ user, onLogout }) {
           </form>
         </div>
       </div>
+      
 
       <p className="text-xs text-[var(--bark-muted-text)] mt-3">
         (Local demo state — backend persistence next.)
@@ -910,4 +920,194 @@ function MessagesPage({ user, onLogout }) {
     </div>
   );
 }
+function AdminPage({ token, apiBase }) {
+  const [dogs, setDogs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState("");
+  const [description, setDescription] = useState("");
+  const [ageCategory, setAgeCategory] = useState("ADULT");
+  const [sizeCategory, setSizeCategory] = useState("MEDIUM");
+  const [imageUrl, setImageUrl] = useState("");
+
+  const loadMine = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiBase}/dogs/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data?.error || "Failed to load your dogs.");
+      setDogs(data.dogs || []);
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const createDog = async () => {
+    if (!name || !breed) return alert("Name + breed are required.");
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiBase}/dogs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name,
+          breed,
+          description: description || undefined,
+          ageCategory,
+          sizeCategory,
+          imageUrl: imageUrl || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) return alert(data?.error || "Failed to create dog.");
+
+      // reset form + reload
+      setName("");
+      setBreed("");
+      setDescription("");
+      setImageUrl("");
+      await loadMine();
+      alert("Dog created.");
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const archiveDog = async (id) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiBase}/dogs/${id}/archive`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data?.error || "Failed to archive dog.");
+      await loadMine();
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
+        Shelter Admin
+      </h2>
+
+      <div className="bg-white rounded-2xl shadow border border-[var(--border)] p-4 space-y-3">
+        <div className="font-semibold">Add Dog</div>
+
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Name (required)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Breed (required)"
+          value={breed}
+          onChange={(e) => setBreed(e.target.value)}
+        />
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Image URL (optional)"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+        />
+        <textarea
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            className="w-full p-3 rounded-xl border border-[var(--border)]"
+            value={ageCategory}
+            onChange={(e) => setAgeCategory(e.target.value)}
+          >
+            <option value="PUPPY">PUPPY</option>
+            <option value="ADULT">ADULT</option>
+            <option value="SENIOR">SENIOR</option>
+          </select>
+
+          <select
+            className="w-full p-3 rounded-xl border border-[var(--border)]"
+            value={sizeCategory}
+            onChange={(e) => setSizeCategory(e.target.value)}
+          >
+            <option value="SMALL">SMALL</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LARGE">LARGE</option>
+          </select>
+        </div>
+
+        <button
+          className="w-full py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] disabled:opacity-60"
+          disabled={loading}
+          onClick={createDog}
+        >
+          {loading ? "Working..." : "Create Dog"}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow border border-[var(--border)] p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-semibold">My Dogs</div>
+          <button
+            className="text-sm px-3 py-2 rounded-xl border border-[var(--border)]"
+            onClick={loadMine}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
+
+        {dogs.length === 0 ? (
+          <div className="text-sm text-[var(--bark-muted-text)]">No dogs yet.</div>
+        ) : (
+          <div className="space-y-2">
+            {dogs.map((d) => (
+              <div key={d.id} className="flex items-center justify-between border border-[var(--border)] rounded-xl p-3">
+                <div>
+                  <div className="font-semibold">{d.name}</div>
+                  <div className="text-xs text-[var(--bark-muted-text)]">{d.breed} • {d.ageCategory} • {d.sizeCategory}</div>
+                </div>
+
+                <button
+                  className="text-sm px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bark-secondary)]"
+                  onClick={() => archiveDog(d.id)}
+                  disabled={loading}
+                >
+                  Archive
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
