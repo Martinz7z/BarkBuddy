@@ -172,13 +172,13 @@ useEffect(() => {
             )
             )}
         {tab === "filter" && (
-          <FilterPage
-            onApply={() => {
-              
-              setTab("swipe");
-            }}
-          />
-        )}
+            <FilterPage
+              setDogs={setDogs}
+              onApply={() => {
+                setTab("swipe");
+              }}
+            />
+          )}
         {tab === "messages" && (
           <MessagesPage
             user={user}
@@ -726,7 +726,7 @@ function CardMedia({ dog, photoIndex, minimal }) {
   );
 }
 
-function FilterPage({ onApply }) {
+function FilterPage({ onApply, setDogs }) {
   const [breed, setBreed] = useState("");
   const [size, setSize] = useState("Any");
   const [age, setAge] = useState("Any");
@@ -772,11 +772,28 @@ function FilterPage({ onApply }) {
 
         <button
           className="w-full mt-4 py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
-          onClick={() => {
-            
-            alert(`Filters applied:\nBreed: ${breed || "Any"}\nSize: ${size}\nAge: ${age}`);
-            onApply();
-          }}
+          onClick={async () => {
+  try {
+    const params = new URLSearchParams();
+
+    if (breed) params.append("breed", breed);
+    if (size !== "Any") params.append("sizeCategory", size.toUpperCase());
+    if (age !== "Any") params.append("ageCategory", age.toUpperCase());
+
+    const res = await fetch(`${API_BASE}/dogs?${params.toString()}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data?.error || "Failed to filter dogs.");
+      return;
+    }
+
+    setDogs(data.dogs || []);
+    onApply();
+  } catch (e) {
+    alert("Could not reach backend.");
+  }
+}}
         >
           Apply Filters
         </button>
