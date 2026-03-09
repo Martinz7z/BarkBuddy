@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import { conversationsRouter } from "./routes/conversations.js";
+import { messagesRouter } from "./routes/messages.js";
 
 import { authRouter } from "./routes/auth.js";
 import { dogsRouter } from "./routes/dogs.js";
@@ -35,6 +37,8 @@ export function createApp() {
 
   app.use("/auth", authRouter);
   app.use("/dogs", dogsRouter);
+  app.use("/conversations", conversationsRouter);
+  app.use("/messages", messagesRouter);
 
   return app;
 }
