@@ -49,18 +49,25 @@ model ShelterProfile {
 }
 
 model Dog {
-  id          String       @id @default(cuid())
-  name        String
-  breed       String
-  description String?
-  ageCategory AgeCategory
-  sizeCategory SizeCategory
-  imageUrl String?
-  archived    Boolean      @default(false)
+  id            String       @id @default(cuid())
+  name          String
+  breed         String
+  description   String?
+  ageCategory   AgeCategory
+  sizeCategory  SizeCategory
+  imageUrl      String?
+  vaccinated    Boolean      @default(false)
+  neutered      Boolean      @default(false)
+  microchipped  Boolean      @default(false)
+  goodWithKids  Boolean      @default(false)
+  goodWithDogs  Boolean      @default(false)
+  houseTrained  Boolean      @default(false)
+  adoptionFee   Int?
+  archived      Boolean      @default(false)
 
-  shelter     User         @relation(fields: [shelterId], references: [id])
-  shelterId   String
+  shelter       User         @relation(fields: [shelterId], references: [id])
+  shelterId     String
 
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }

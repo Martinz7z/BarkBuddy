@@ -59,34 +59,31 @@ export default function App() {
   restore();
 }, [token]);
 
-  // mock dog data (later fetch from API)
-   const [dogs, setDogs] = useState([]);
-  const [dogsLoading, setDogsLoading] = useState(false);
+const [dogs, setDogs] = useState([]);
+const [dogsLoading, setDogsLoading] = useState(false);
 
-  useEffect(() => {
-    const loadDogs = async () => {
-      try {
-        setDogsLoading(true);
-        const res = await fetch(`${API_BASE}/dogs`);
-        const data = await res.json();
+useEffect(() => {
+  const loadDogs = async () => {
+    try {
+      setDogsLoading(true);
+      const res = await fetch(`${API_BASE}/dogs`);
+      const data = await res.json();
 
-        if (!res.ok) {
-          console.error(data);
-          return;
-        }
-
-        // backend returns { dogs: [...] }
-        setDogs(data.dogs || []);
-      } catch (e) {
-        console.error("Failed to load dogs", e);
-      } finally {
-        setDogsLoading(false);
+      if (!res.ok) {
+        console.error(data);
+        return;
       }
-    };
 
-    loadDogs();
-  }, []);
+      setDogs(data.dogs || []);
+    } catch (e) {
+      console.error("Failed to load dogs", e);
+    } finally {
+      setDogsLoading(false);
+    }
+  };
 
+  loadDogs();
+}, []);
   // If not logged in -> show auth screens
   if (!user) {
     return (

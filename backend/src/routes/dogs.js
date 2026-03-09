@@ -8,17 +8,40 @@ const router = Router();
 /**
  * GET /dogs
  * Public list (default excludes archived)
- * Supports filters: breed, ageCategory, sizeCategory, q
+ * Supports filters
  */
 router.get("/", async (req, res) => {
   try {
-    const { breed, ageCategory, sizeCategory, q } = req.query;
+    const {
+      breed,
+      ageCategory,
+      sizeCategory,
+      q,
+      vaccinated,
+      neutered,
+      microchipped,
+      goodWithKids,
+      goodWithDogs,
+      houseTrained,
+      maxFee,
+    } = req.query;
 
     const where = { archived: false };
 
     if (breed) where.breed = { contains: String(breed), mode: "insensitive" };
     if (ageCategory) where.ageCategory = String(ageCategory);
     if (sizeCategory) where.sizeCategory = String(sizeCategory);
+
+    if (vaccinated === "true") where.vaccinated = true;
+    if (neutered === "true") where.neutered = true;
+    if (microchipped === "true") where.microchipped = true;
+    if (goodWithKids === "true") where.goodWithKids = true;
+    if (goodWithDogs === "true") where.goodWithDogs = true;
+    if (houseTrained === "true") where.houseTrained = true;
+
+    if (maxFee) {
+      where.adoptionFee = { lte: Number(maxFee) };
+    }
 
     if (q) {
       where.OR = [
@@ -57,8 +80,7 @@ router.get("/", async (req, res) => {
 
 /**
  * GET /dogs/mine
- * Shelter only (includes archived too so you can manage them)
- * IMPORTANT: must be BEFORE "/:id" route
+ * Shelter only
  */
 router.get("/mine", requireAuth, requireRole("SHELTER"), async (req, res) => {
   try {
@@ -80,13 +102,34 @@ router.get("/mine", requireAuth, requireRole("SHELTER"), async (req, res) => {
  */
 router.post("/", requireAuth, requireRole("SHELTER"), async (req, res) => {
   try {
-    const { name, breed, description, ageCategory, sizeCategory, imageUrl } = req.body;
+    const {
+      name,
+      breed,
+      description,
+      ageCategory,
+      sizeCategory,
+      imageUrl,
+      vaccinated,
+      neutered,
+      microchipped,
+      goodWithKids,
+      goodWithDogs,
+      houseTrained,
+      adoptionFee,
+    } = req.body;
 
-    // basic validation (enough for milestone)
-    if (!name || typeof name !== "string") return res.status(400).json({ error: "Name is required." });
-    if (!breed || typeof breed !== "string") return res.status(400).json({ error: "Breed is required." });
-    if (!ageCategory) return res.status(400).json({ error: "ageCategory is required." });
-    if (!sizeCategory) return res.status(400).json({ error: "sizeCategory is required." });
+    if (!name || typeof name !== "string") {
+      return res.status(400).json({ error: "Name is required." });
+    }
+    if (!breed || typeof breed !== "string") {
+      return res.status(400).json({ error: "Breed is required." });
+    }
+    if (!ageCategory) {
+      return res.status(400).json({ error: "ageCategory is required." });
+    }
+    if (!sizeCategory) {
+      return res.status(400).json({ error: "sizeCategory is required." });
+    }
 
     const dog = await prisma.dog.create({
       data: {
@@ -96,6 +139,15 @@ router.post("/", requireAuth, requireRole("SHELTER"), async (req, res) => {
         ageCategory,
         sizeCategory,
         imageUrl: imageUrl ? String(imageUrl) : null,
+        vaccinated: Boolean(vaccinated),
+        neutered: Boolean(neutered),
+        microchipped: Boolean(microchipped),
+        goodWithKids: Boolean(goodWithKids),
+        goodWithDogs: Boolean(goodWithDogs),
+        houseTrained: Boolean(houseTrained),
+        adoptionFee: adoptionFee !== undefined && adoptionFee !== null && adoptionFee !== ""
+          ? Number(adoptionFee)
+          : null,
         shelterId: req.user.id,
       },
     });
@@ -109,7 +161,7 @@ router.post("/", requireAuth, requireRole("SHELTER"), async (req, res) => {
 
 /**
  * PATCH /dogs/:id
- * Shelter only (can only edit own dog)
+ * Shelter only
  */
 router.patch("/:id", requireAuth, requireRole("SHELTER"), async (req, res) => {
   try {
@@ -119,9 +171,23 @@ router.patch("/:id", requireAuth, requireRole("SHELTER"), async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Dog not found." });
     if (existing.shelterId !== req.user.id) return res.status(403).json({ error: "Not allowed." });
 
-    const { name, breed, description, ageCategory, sizeCategory, imageUrl, archived } = req.body;
+    const {
+      name,
+      breed,
+      description,
+      ageCategory,
+      sizeCategory,
+      imageUrl,
+      vaccinated,
+      neutered,
+      microchipped,
+      goodWithKids,
+      goodWithDogs,
+      houseTrained,
+      adoptionFee,
+      archived,
+    } = req.body;
 
-    // prevent un-archiving via this route (keep archive endpoint explicit)
     if (archived !== undefined) {
       return res.status(400).json({ error: "Use /dogs/:id/archive to archive a dog." });
     }
@@ -135,6 +201,20 @@ router.patch("/:id", requireAuth, requireRole("SHELTER"), async (req, res) => {
         ...(ageCategory !== undefined ? { ageCategory } : {}),
         ...(sizeCategory !== undefined ? { sizeCategory } : {}),
         ...(imageUrl !== undefined ? { imageUrl: imageUrl ? String(imageUrl) : null } : {}),
+        ...(vaccinated !== undefined ? { vaccinated: Boolean(vaccinated) } : {}),
+        ...(neutered !== undefined ? { neutered: Boolean(neutered) } : {}),
+        ...(microchipped !== undefined ? { microchipped: Boolean(microchipped) } : {}),
+        ...(goodWithKids !== undefined ? { goodWithKids: Boolean(goodWithKids) } : {}),
+        ...(goodWithDogs !== undefined ? { goodWithDogs: Boolean(goodWithDogs) } : {}),
+        ...(houseTrained !== undefined ? { houseTrained: Boolean(houseTrained) } : {}),
+        ...(adoptionFee !== undefined
+          ? {
+              adoptionFee:
+                adoptionFee === null || adoptionFee === ""
+                  ? null
+                  : Number(adoptionFee),
+            }
+          : {}),
       },
     });
 
@@ -147,7 +227,7 @@ router.patch("/:id", requireAuth, requireRole("SHELTER"), async (req, res) => {
 
 /**
  * PATCH /dogs/:id/archive
- * Shelter only (archive own dog)
+ * Shelter only
  */
 router.patch("/:id/archive", requireAuth, requireRole("SHELTER"), async (req, res) => {
   try {
@@ -171,8 +251,7 @@ router.patch("/:id/archive", requireAuth, requireRole("SHELTER"), async (req, re
 
 /**
  * GET /dogs/:id
- * Public (only returns non-archived dogs)
- * Must be AFTER /mine
+ * Public (non-archived only)
  */
 router.get("/:id", async (req, res) => {
   try {
