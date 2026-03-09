@@ -635,6 +635,44 @@ const photos =
                 </p>
               </div>
 
+              <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                {current.vaccinated && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    Vaccinated
+                  </span>
+                )}
+
+                {current.neutered && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    Neutered
+                  </span>
+                )}
+
+                {current.microchipped && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    Microchipped
+                  </span>
+                )}
+
+                {current.goodWithKids && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    Good with kids
+                  </span>
+                )}
+
+                {current.goodWithDogs && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    Good with dogs
+                  </span>
+                )}
+
+                {current.houseTrained && (
+                  <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
+                    House trained
+                  </span>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <button
                   className="py-3 rounded-2xl border border-[var(--border)] bg-white hover:bg-[var(--bark-secondary)]"
