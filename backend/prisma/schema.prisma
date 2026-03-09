@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 enum Role {
   BASIC_USER
   SHELTER
@@ -30,8 +31,12 @@ model User {
   passwordHash String
   role         Role     @default(BASIC_USER)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt 
-  dogs Dog[]
+  updatedAt    DateTime @updatedAt
+  dogs         Dog[]
+
+  conversationsAsUser    Conversation[] @relation("UserConversations")
+  conversationsAsShelter Conversation[] @relation("ShelterConversations")
+  messages               Message[]
 
   shelterProfile ShelterProfile?
 }
@@ -49,25 +54,54 @@ model ShelterProfile {
 }
 
 model Dog {
-  id            String       @id @default(cuid())
-  name          String
-  breed         String
-  description   String?
-  ageCategory   AgeCategory
-  sizeCategory  SizeCategory
-  imageUrl      String?
-  vaccinated    Boolean      @default(false)
-  neutered      Boolean      @default(false)
-  microchipped  Boolean      @default(false)
-  goodWithKids  Boolean      @default(false)
-  goodWithDogs  Boolean      @default(false)
-  houseTrained  Boolean      @default(false)
-  adoptionFee   Int?
-  archived      Boolean      @default(false)
+  id           String       @id @default(cuid())
+  name         String
+  breed        String
+  description  String?
+  ageCategory  AgeCategory
+  sizeCategory SizeCategory
+  imageUrl     String?
+  vaccinated   Boolean      @default(false)
+  neutered     Boolean      @default(false)
+  microchipped Boolean      @default(false)
+  goodWithKids Boolean      @default(false)
+  goodWithDogs Boolean      @default(false)
+  houseTrained Boolean      @default(false)
+  adoptionFee  Int?
+  archived     Boolean      @default(false)
 
-  shelter       User         @relation(fields: [shelterId], references: [id])
-  shelterId     String
+  shelter   User   @relation(fields: [shelterId], references: [id])
+  shelterId String
 
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  conversations Conversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id        String  @id @default(cuid())
+  userId    String
+  shelterId String
+  dogId     String?
+
+  user    User @relation("UserConversations", fields: [userId], references: [id])
+  shelter User @relation("ShelterConversations", fields: [shelterId], references: [id])
+  dog     Dog? @relation(fields: [dogId], references: [id])
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id             String @id @default(cuid())
+  conversationId String
+  senderId       String
+  text           String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  createdAt DateTime @default(now())
 }
