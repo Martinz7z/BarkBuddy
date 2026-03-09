@@ -75,6 +75,7 @@ useEffect(() => {
       }
 
       setDogs(data.dogs || []);
+      
     } catch (e) {
       console.error("Failed to load dogs", e);
     } finally {
@@ -928,6 +929,14 @@ function AdminPage({ token, apiBase }) {
   const [sizeCategory, setSizeCategory] = useState("MEDIUM");
   const [imageUrl, setImageUrl] = useState("");
 
+  const [vaccinated, setVaccinated] = useState(false);
+  const [neutered, setNeutered] = useState(false);
+  const [microchipped, setMicrochipped] = useState(false);
+  const [goodWithKids, setGoodWithKids] = useState(false);
+  const [goodWithDogs, setGoodWithDogs] = useState(false);
+  const [houseTrained, setHouseTrained] = useState(false);
+  const [adoptionFee, setAdoptionFee] = useState("");
+
   const loadMine = async () => {
     try {
       setLoading(true);
@@ -946,7 +955,6 @@ function AdminPage({ token, apiBase }) {
 
   useEffect(() => {
     loadMine();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createDog = async () => {
@@ -967,17 +975,33 @@ function AdminPage({ token, apiBase }) {
           ageCategory,
           sizeCategory,
           imageUrl: imageUrl || undefined,
+          vaccinated,
+          neutered,
+          microchipped,
+          goodWithKids,
+          goodWithDogs,
+          houseTrained,
+          adoptionFee: adoptionFee === "" ? undefined : Number(adoptionFee),
         }),
       });
 
       const data = await res.json();
       if (!res.ok) return alert(data?.error || "Failed to create dog.");
 
-      // reset form + reload
       setName("");
       setBreed("");
       setDescription("");
       setImageUrl("");
+      setAgeCategory("ADULT");
+      setSizeCategory("MEDIUM");
+      setVaccinated(false);
+      setNeutered(false);
+      setMicrochipped(false);
+      setGoodWithKids(false);
+      setGoodWithDogs(false);
+      setHouseTrained(false);
+      setAdoptionFee("");
+
       await loadMine();
       alert("Dog created.");
     } catch (e) {
@@ -1019,18 +1043,21 @@ function AdminPage({ token, apiBase }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+
         <input
           className="w-full p-3 rounded-xl border border-[var(--border)]"
           placeholder="Breed (required)"
           value={breed}
           onChange={(e) => setBreed(e.target.value)}
         />
+
         <input
           className="w-full p-3 rounded-xl border border-[var(--border)]"
           placeholder="Image URL (optional)"
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
         />
+
         <textarea
           className="w-full p-3 rounded-xl border border-[var(--border)]"
           placeholder="Description (optional)"
@@ -1061,6 +1088,46 @@ function AdminPage({ token, apiBase }) {
           </select>
         </div>
 
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Adoption fee (optional)"
+          type="number"
+          value={adoptionFee}
+          onChange={(e) => setAdoptionFee(e.target.value)}
+        />
+
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={vaccinated} onChange={(e) => setVaccinated(e.target.checked)} />
+            Vaccinated
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={neutered} onChange={(e) => setNeutered(e.target.checked)} />
+            Neutered
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={microchipped} onChange={(e) => setMicrochipped(e.target.checked)} />
+            Microchipped
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={goodWithKids} onChange={(e) => setGoodWithKids(e.target.checked)} />
+            Good with kids
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={goodWithDogs} onChange={(e) => setGoodWithDogs(e.target.checked)} />
+            Good with dogs
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={houseTrained} onChange={(e) => setHouseTrained(e.target.checked)} />
+            House trained
+          </label>
+        </div>
+
         <button
           className="w-full py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] disabled:opacity-60"
           disabled={loading}
@@ -1087,19 +1154,38 @@ function AdminPage({ token, apiBase }) {
         ) : (
           <div className="space-y-2">
             {dogs.map((d) => (
-              <div key={d.id} className="flex items-center justify-between border border-[var(--border)] rounded-xl p-3">
-                <div>
-                  <div className="font-semibold">{d.name}</div>
-                  <div className="text-xs text-[var(--bark-muted-text)]">{d.breed} • {d.ageCategory} • {d.sizeCategory}</div>
+              <div key={d.id} className="border border-[var(--border)] rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold">{d.name}</div>
+                    <div className="text-xs text-[var(--bark-muted-text)]">
+                      {d.breed} • {d.ageCategory} • {d.sizeCategory}
+                    </div>
+                    {d.adoptionFee !== null && d.adoptionFee !== undefined && (
+                      <div className="text-xs text-[var(--bark-muted-text)] mt-1">
+                        Adoption fee: €{d.adoptionFee}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    className="text-sm px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bark-secondary)]"
+                    onClick={() => archiveDog(d.id)}
+                    disabled={loading}
+                  >
+                    Archive
+                  </button>
                 </div>
 
-                <button
-                  className="text-sm px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bark-secondary)]"
-                  onClick={() => archiveDog(d.id)}
-                  disabled={loading}
-                >
-                  Archive
-                </button>
+                <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                  {d.vaccinated && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">Vaccinated</span>}
+                  {d.neutered && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">Neutered</span>}
+                  {d.microchipped && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">Microchipped</span>}
+                  {d.goodWithKids && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">Good with kids</span>}
+                  {d.goodWithDogs && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">Good with dogs</span>}
+                  {d.houseTrained && <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">House trained</span>}
+                  {d.archived && <span className="px-2 py-1 rounded-full bg-red-100">Archived</span>}
+                </div>
               </div>
             ))}
           </div>
@@ -1108,3 +1194,4 @@ function AdminPage({ token, apiBase }) {
     </div>
   );
 }
+
