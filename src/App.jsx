@@ -182,8 +182,10 @@ useEffect(() => {
         {tab === "messages" && (
           <MessagesPage
             user={user}
+            token={token}
+            apiBase={API_BASE}
             onLogout={() => {
-            localStorage.removeItem("bb_token");
+              localStorage.removeItem("bb_token");
               setToken("");
               setUser(null);
               setAuthView("login");
