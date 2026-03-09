@@ -985,8 +985,12 @@ function AdminPage({ token, apiBase }) {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) return alert(data?.error || "Failed to create dog.");
+     const data = await res.json();
+    if (!res.ok) return alert(data?.error || "Failed to create dog.");
+
+      const newDog = data.dog;
+
+      setDogs((prev) => [newDog, ...prev]);
 
       setName("");
       setBreed("");
@@ -1002,7 +1006,8 @@ function AdminPage({ token, apiBase }) {
       setHouseTrained(false);
       setAdoptionFee("");
 
-      await loadMine();
+
+      
       alert("Dog created.");
     } catch (e) {
       alert("Could not reach backend.");
