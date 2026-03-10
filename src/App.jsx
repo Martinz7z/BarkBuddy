@@ -168,7 +168,13 @@ useEffect(() => {
            No dogs available yet. (Shelters can add dogs in the admin flow.)
            </div>
              ) : (
-          <SwipePage dogs={dogs} />
+          <SwipePage
+            dogs={dogs}
+            user={user}
+            token={token}
+            apiBase={API_BASE}
+            onOpenMessages={() => setTab("messages")}
+          />
             )
             )}
         {tab === "filter" && (
@@ -456,7 +462,7 @@ function RoleButton({ active, onClick, label }) {
   );
 }
 
-function SwipePage({ dogs }) {
+function SwipePage({ dogs, user, token, apiBase, onOpenMessages }) {
   const [index, setIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -495,6 +501,45 @@ const photos =
     await animate(x, toX, { type: "spring", stiffness: 260, damping: 22 });
     goNextDog();
   };
+  const likeDog = async () => {
+  try {
+    // only basic users should start conversations this way
+    if (user?.role !== "Basic User") {
+      await swipeOut("right");
+      return;
+    }
+
+    if (!current?.shelter?.id) {
+      alert("Shelter information is missing for this dog.");
+      return;
+    }
+
+    const res = await fetch(`${apiBase}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        shelterId: current.shelter.id,
+        dogId: current.id,
+        text: `Hi, I am interested in ${current.name}.`,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data?.error || "Could not start conversation.");
+      return;
+    }
+
+    await swipeOut("right");
+    onOpenMessages();
+  } catch (e) {
+    alert("Could not reach backend.");
+  }
+};
 
   const onDragEnd = (_, info) => {
     const offset = info.offset.x;
@@ -684,7 +729,7 @@ const photos =
                 </button>
                 <button
                   className="py-3 rounded-2xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
-                  onClick={() => swipeOut("right")}
+                  onClick={likeDog}
                 >
                   Like
                 </button>
@@ -804,64 +849,137 @@ function FilterPage({ onApply, setDogs }) {
   );
 }
 
-function MessagesPage({ user, onLogout }) {
-  const [active, setActive] = useState("dundalk");
-  const [mode, setMode] = useState("list"); // mobile mode: list or chat
-
-  
-  const [conversations, setConversations] = useState(() => ({
-    dundalk: {
-      name: "Dundalk Dog Shelter",
-      messages: [
-        { from: "shelter", text: "Hi! Buddy is still available 😊", ts: Date.now() - 200000 },
-        { from: "user", text: "Great — can I arrange a visit?", ts: Date.now() - 150000 },
-      ],
-    },
-    dogstrust: {
-      name: "Dogs Trust Dublin",
-      messages: [
-        { from: "shelter", text: "Hello! Luna has a calm temperament.", ts: Date.now() - 160000 },
-        { from: "user", text: "Is she okay with kids?", ts: Date.now() - 120000 },
-      ],
-    },
-    dublinsPCA: {
-      name: "Dublin SPCA",
-      messages: [
-        { from: "shelter", text: "Max is house-trained and loves walks.", ts: Date.now() - 140000 },
-        { from: "user", text: "Perfect, what’s the adoption process?", ts: Date.now() - 100000 },
-      ],
-    },
-  }));
-
-  const convo = conversations[active];
+function MessagesPage({ user, token, apiBase, onLogout }) {
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState("");
+  const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
+  const [mode, setMode] = useState("list");
+  const [loading, setLoading] = useState(false);
 
-  // auto-scroll to bottom on new message / thread change
   const bottomRef = useRef(null);
+
+  const loadConversations = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiBase}/conversations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Failed to load conversations.");
+        return;
+      }
+
+      setConversations(data.conversations || []);
+
+      if (!activeId && data.conversations?.length > 0) {
+        setActiveId(data.conversations[0].id);
+      }
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (conversationId) => {
+    if (!conversationId) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiBase}/messages/${conversationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Failed to load messages.");
+        return;
+      }
+
+      setMessages(data.messages || []);
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  useEffect(() => {
+    if (activeId) {
+      loadMessages(activeId);
+    } else {
+      setMessages([]);
+    }
+  }, [activeId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [active, convo.messages.length]);
+  }, [messages]);
 
-  const sendMessage = () => {
+  const activeConversation =
+    conversations.find((c) => c.id === activeId) || null;
+
+  const conversationTitle = (c) => {
+    if (!c) return "Conversation";
+
+    if (user.role === "Shelter") {
+      return c.user?.name || c.user?.email || "User";
+    }
+
+    return (
+      c.shelter?.shelterProfile?.shelterName ||
+      c.shelter?.name ||
+      c.shelter?.email ||
+      "Shelter"
+    );
+  };
+
+  const sendMessage = async () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || !activeId) return;
 
-    setConversations((prev) => ({
-  ...prev,
-  [active]: {
-    ...prev[active],
-    messages: [...prev[active].messages, { from: "user", text, ts: Date.now() }],
-  },
-}));
+    try {
+      const res = await fetch(`${apiBase}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationId: activeId,
+          text,
+        }),
+      });
 
-    setDraft("");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Failed to send message.");
+        return;
+      }
+
+      setMessages((prev) => [...prev, data.message]);
+      setDraft("");
+      loadConversations();
+    } catch (e) {
+      alert("Could not reach backend.");
+    }
   };
 
   return (
     <div className="h-full flex flex-col">
-      {/* Top bar */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
+        <h2
+          className="text-2xl font-bold"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
           Messages
         </h2>
         <button
@@ -872,41 +990,64 @@ function MessagesPage({ user, onLogout }) {
         </button>
       </div>
 
-      {/* Main container */}
       <div className="flex-1 bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex">
-        {/* Conversation list */}
         <div
           className={`w-full md:w-80 border-r border-[var(--border)] ${
             mode === "chat" ? "hidden md:block" : "block"
           }`}
         >
           <div className="px-4 py-3 font-semibold border-b border-[var(--border)]">
-            Shelters
+            Conversations
           </div>
 
           <div className="overflow-y-auto h-full">
-            {Object.entries(conversations).map(([key, c]) => (
-              <button
-                key={key}
-                className={`w-full text-left px-4 py-3 border-b border-[var(--border)] ${
-                  active === key ? "bg-[var(--bark-secondary)]" : "bg-white"
-                }`}
-                onClick={() => {
-                  setActive(key);
-                  setMode("chat");
-                }}
-              >
-                <div className="text-sm font-semibold">{c.name}</div>
-                <div className="text-xs text-[var(--bark-muted-text)] truncate">
-                  {c.messages[c.messages.length - 1]?.text || "No messages yet"}
-                </div>
-              </button>
-            ))}
+            {loading && conversations.length === 0 ? (
+              <div className="p-4 text-sm text-[var(--bark-muted-text)]">
+                Loading conversations...
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="p-4 text-sm text-[var(--bark-muted-text)]">
+                No conversations yet.
+              </div>
+            ) : (
+              conversations.map((c) => {
+                const lastMessage = c.messages?.[0];
+                return (
+                  <button
+                    key={c.id}
+                    className={`w-full text-left px-4 py-3 border-b border-[var(--border)] ${
+                      activeId === c.id ? "bg-[var(--bark-secondary)]" : "bg-white"
+                    }`}
+                    onClick={() => {
+                      setActiveId(c.id);
+                      setMode("chat");
+                    }}
+                  >
+                    <div className="text-sm font-semibold">
+                      {conversationTitle(c)}
+                    </div>
+
+                    {c.dog?.name && (
+                      <div className="text-xs text-[var(--bark-muted-text)]">
+                        About: {c.dog.name}
+                      </div>
+                    )}
+
+                    <div className="text-xs text-[var(--bark-muted-text)] truncate">
+                      {lastMessage?.text || "No messages yet"}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Chat panel */}
-        <div className={`flex-1 flex flex-col ${mode === "list" ? "hidden md:flex" : "flex"}`}>
+        <div
+          className={`flex-1 flex flex-col ${
+            mode === "list" ? "hidden md:flex" : "flex"
+          }`}
+        >
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-3">
             <button
               className="md:hidden px-3 py-2 rounded-xl border border-[var(--border)]"
@@ -914,30 +1055,42 @@ function MessagesPage({ user, onLogout }) {
             >
               ←
             </button>
-            <div className="font-semibold">{convo.name}</div>
+            <div className="font-semibold">
+              {activeConversation
+                ? conversationTitle(activeConversation)
+                : "Select a conversation"}
+            </div>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 p-4 space-y-2 overflow-y-auto bg-[var(--bark-secondary)]">
-            {convo.messages.map((m, idx) => {
-              const isUser = m.from === "user";
-              return (
-                <div
-                  key={`${m.ts}-${idx}`}
-                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
-                    isUser
-                      ? "ml-auto bg-[var(--bark-primary)] text-white"
-                      : "bg-white text-[var(--bark-text)]"
-                  }`}
-                >
-                  {m.text}
-                </div>
-              );
-            })}
+            {!activeId ? (
+              <div className="text-sm text-[var(--bark-muted-text)]">
+                Select a conversation to view messages.
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="text-sm text-[var(--bark-muted-text)]">
+                No messages yet.
+              </div>
+            ) : (
+              messages.map((m) => {
+                const isUser = m.senderId === user.id;
+                return (
+                  <div
+                    key={m.id}
+                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
+                      isUser
+                        ? "ml-auto bg-[var(--bark-primary)] text-white"
+                        : "bg-white text-[var(--bark-text)]"
+                    }`}
+                  >
+                    {m.text}
+                  </div>
+                );
+              })
+            )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
           <form
             className="p-3 border-t border-[var(--border)] flex gap-2 bg-white"
             onSubmit={(e) => {
@@ -947,30 +1100,28 @@ function MessagesPage({ user, onLogout }) {
           >
             <input
               className="flex-1 p-3 rounded-2xl border border-[var(--border)]"
-              placeholder={`Message ${convo.name}...`}
+              placeholder={
+                activeConversation
+                  ? `Message ${conversationTitle(activeConversation)}...`
+                  : "Select a conversation first..."
+              }
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                // allow Enter to send, Shift+Enter for newline (optional)
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
+              disabled={!activeId}
             />
             <button
               type="submit"
-              className="px-5 rounded-2xl text-white font-semibold bg-[var(--bark-accent)]"
+              className="px-5 rounded-2xl text-white font-semibold bg-[var(--bark-accent)] disabled:opacity-60"
+              disabled={!activeId}
             >
               Send
             </button>
           </form>
         </div>
       </div>
-      
 
       <p className="text-xs text-[var(--bark-muted-text)] mt-3">
-        (Local demo state — backend persistence next.)
+        Messages are now loaded from the backend.
       </p>
     </div>
   );
