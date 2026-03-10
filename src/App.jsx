@@ -503,7 +503,6 @@ const photos =
   };
   const likeDog = async () => {
   try {
-    // only basic users should start conversations this way
     if (user?.role !== "Basic User") {
       await swipeOut("right");
       return;
@@ -514,7 +513,7 @@ const photos =
       return;
     }
 
-    const res = await fetch(`${apiBase}/messages`, {
+    const res = await fetch(`${apiBase}/conversations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -523,14 +522,13 @@ const photos =
       body: JSON.stringify({
         shelterId: current.shelter.id,
         dogId: current.id,
-        text: `Hi, I am interested in ${current.name}.`,
       }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data?.error || "Could not start conversation.");
+      alert(data?.error || "Could not create conversation.");
       return;
     }
 
@@ -989,6 +987,35 @@ function MessagesPage({ user, token, apiBase, onLogout }) {
           Log out
         </button>
       </div>
+
+      <div className="flex gap-3 overflow-x-auto pb-3 mb-3">
+  {conversations.map((c) => (
+    <button
+      key={c.id}
+      className="flex flex-col items-center min-w-[72px]"
+      onClick={() => {
+        setActiveId(c.id);
+        setMode("chat");
+      }}
+    >
+      <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${
+        activeId === c.id ? "border-[var(--bark-primary)]" : "border-[var(--border)]"
+      }`}>
+        <img
+          src={c.dog?.imageUrl || "https://placehold.co/200x200?text=Dog"}
+          alt={c.dog?.name || "Dog"}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "https://placehold.co/200x200?text=Dog";
+          }}
+        />
+      </div>
+      <div className="text-xs mt-1 text-center truncate max-w-[72px]">
+        {c.dog?.name || conversationTitle(c)}
+      </div>
+    </button>
+  ))}
+</div>
 
       <div className="flex-1 bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex">
         <div
