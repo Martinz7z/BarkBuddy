@@ -39,6 +39,7 @@ model User {
   messages               Message[]
 
   shelterProfile ShelterProfile?
+  DogLike        DogLike[]
 }
 
 model ShelterProfile {
@@ -75,8 +76,21 @@ model Dog {
 
   conversations Conversation[]
 
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  DogLike   DogLike[]
+}
+
+model DogLike {
+  id        String   @id @default(cuid())
+  userId    String
+  dogId     String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dog  Dog  @relation(fields: [dogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dogId])
 }
 
 model Conversation {
