@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { requireRole } from "../middleware/requireRole.js";
 
 const router = Router();
-
+console.log("dogs router loaded");
 /**
  * GET /dogs
  * Public list (default excludes archived)
@@ -249,6 +249,47 @@ router.patch("/:id/archive", requireAuth, requireRole("SHELTER"), async (req, re
   }
 });
 
+
+router.post("/:id/like", requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== "BASIC_USER") {
+      return res.status(403).json({ error: "Only basic users can like dogs." });
+    }
+
+    const dogId = req.params.id;
+    const userId = req.user.id;
+
+    const dog = await prisma.dog.findUnique({ where: { id: dogId } });
+    if (!dog) {
+      return res.status(404).json({ error: "Dog not found." });
+    }
+
+    const existing = await prisma.dogLike.findUnique({
+      where: {
+        userId_dogId: {
+          userId,
+          dogId,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.json({ liked: true, alreadyLiked: true });
+    }
+
+    const like = await prisma.dogLike.create({
+      data: {
+        userId,
+        dogId,
+      },
+    });
+
+    res.status(201).json({ liked: true, like });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Could not like dog." });
+  }
+});
 /**
  * GET /dogs/:id
  * Public (non-archived only)

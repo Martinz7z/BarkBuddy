@@ -61,6 +61,7 @@ export default function App() {
 
 const [dogs, setDogs] = useState([]);
 const [dogsLoading, setDogsLoading] = useState(false);
+const [seenDogIds, setSeenDogIds] = useState([]);
 
 useEffect(() => {
   const loadDogs = async () => {
@@ -82,9 +83,12 @@ useEffect(() => {
       setDogsLoading(false);
     }
   };
+  
 
   loadDogs();
 }, []);
+
+  const visibleDogs = dogs.filter((dog) => !seenDogIds.includes(dog.id));
   // If not logged in -> show auth screens
   if (!user) {
     return (
@@ -161,22 +165,29 @@ useEffect(() => {
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-4">
         {tab === "swipe" && (
-         dogsLoading ? (
-            <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">Loading dogs...</div>
-          ) : dogs.length === 0 ? (
-          <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
-           No dogs available yet. (Shelters can add dogs in the admin flow.)
-           </div>
-             ) : (
-          <SwipePage
-            dogs={dogs}
-            user={user}
-            token={token}
-            apiBase={API_BASE}
-            onOpenMessages={() => setTab("messages")}
-          />
-            )
-            )}
+          dogsLoading ? (
+            <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
+              Loading dogs...
+            </div>
+          ) : visibleDogs.length === 0 ? (
+            <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
+              No dogs available right now.
+            </div>
+          ) : (
+            <SwipePage
+              dogs={visibleDogs}
+              user={user}
+              token={token}
+              apiBase={API_BASE}
+              onOpenMessages={() => setTab("messages")}
+              onDogSeen={(dogId) =>
+                setSeenDogIds((prev) =>
+                  prev.includes(dogId) ? prev : [...prev, dogId]
+                )
+              }
+            />
+          )
+        )}
         {tab === "filter" && (
             <FilterPage
               setDogs={setDogs}
@@ -462,7 +473,7 @@ function RoleButton({ active, onClick, label }) {
   );
 }
 
-function SwipePage({ dogs, user, token, apiBase, onOpenMessages }) {
+function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen }) {
   const [index, setIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -491,15 +502,17 @@ const photos =
 
   useEffect(() => setPhotoIndex(0), [index]);
 
-  const goNextDog = () => {
-    setIndex((i) => (i + 1) % dogs.length);
-    x.set(0);
-  };
+    const removeCurrentDog = () => {
+      onDogSeen(current.id);
+      setIndex(0);
+      setPhotoIndex(0);
+      x.set(0);
+    };
 
-  const swipeOut = async (direction) => {
+    const swipeOut = async (direction) => {
     const toX = direction === "right" ? 420 : -420;
     await animate(x, toX, { type: "spring", stiffness: 260, damping: 22 });
-    goNextDog();
+    removeCurrentDog();
   };
   const likeDog = async () => {
   try {
@@ -508,12 +521,26 @@ const photos =
       return;
     }
 
+    const likeRes = await fetch(`${apiBase}/dogs/${current.id}/like`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const likeData = await likeRes.json();
+
+    if (!likeRes.ok) {
+      alert(likeData?.error || "Could not like dog.");
+      return;
+    }
+
     if (!current?.shelter?.id) {
       alert("Shelter information is missing for this dog.");
       return;
     }
 
-    const res = await fetch(`${apiBase}/conversations`, {
+    const convoRes = await fetch(`${apiBase}/conversations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -525,10 +552,10 @@ const photos =
       }),
     });
 
-    const data = await res.json();
+    const convoData = await convoRes.json();
 
-    if (!res.ok) {
-      alert(data?.error || "Could not create conversation.");
+    if (!convoRes.ok) {
+      alert(convoData?.error || "Could not create conversation.");
       return;
     }
 
@@ -666,7 +693,7 @@ const photos =
                       {current.name}
                     </h3>
                     <p className="text-sm text-[var(--bark-muted-text)]">
-                      {current.breed} • {current.age}
+                      {current.breed} • {current.ageCategory}
                     </p>
                   </div>
 
