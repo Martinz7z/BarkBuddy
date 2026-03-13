@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { requireRole } from "../middleware/requireRole.js";
 
 const router = Router();
-console.log("dogs router loaded");
+
 /**
  * GET /dogs
  * Public list (default excludes archived)
