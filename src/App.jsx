@@ -62,6 +62,7 @@ export default function App() {
 const [dogs, setDogs] = useState([]);
 const [dogsLoading, setDogsLoading] = useState(false);
 const [seenDogIds, setSeenDogIds] = useState([]);
+const [userLocation, setUserLocation] = useState(null);
 
 useEffect(() => {
   const loadDogs = async () => {
@@ -86,6 +87,32 @@ useEffect(() => {
   
 
   loadDogs();
+}, []);
+
+  useEffect(() => {
+  if (!navigator.geolocation) {
+    console.log("Geolocation not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      console.log("Geolocation success", position.coords.latitude, position.coords.longitude);
+      setUserLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    },
+    (error) => {
+      console.log("Geolocation error", error);
+      setUserLocation(null);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    }
+  );
 }, []);
 
   const visibleDogs = dogs.filter((dog) => !seenDogIds.includes(dog.id));
@@ -179,6 +206,7 @@ useEffect(() => {
               user={user}
               token={token}
               apiBase={API_BASE}
+              userLocation={userLocation}
               onOpenMessages={() => setTab("messages")}
               onDogSeen={(dogId) =>
                 setSeenDogIds((prev) =>
@@ -473,7 +501,7 @@ function RoleButton({ active, onClick, label }) {
   );
 }
 
-function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen }) {
+function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, userLocation }) {
   const [index, setIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -485,7 +513,9 @@ function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen }) {
     </div>
   );
 }
-
+console.log("userLocation", userLocation);
+console.log("shelter coords", current?.shelterLatitude, current?.shelterLongitude);
+console.log("shelter location", current?.shelterLocation);
 const photos =
   Array.isArray(current?.photos) && current.photos.length > 0
     ? current.photos
@@ -514,7 +544,37 @@ const photos =
     await animate(x, toX, { type: "spring", stiffness: 260, damping: 22 });
     removeCurrentDog();
   };
-  const likeDog = async () => {
+    const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const distanceKm =
+  userLocation &&
+  current?.shelterLatitude != null &&
+  current?.shelterLongitude != null
+    ? getDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        current.shelterLatitude,
+        current.shelterLongitude
+      )
+    : null;
+
+ const likeDog = async () => {
   try {
     if (user?.role !== "Basic User") {
       await swipeOut("right");
@@ -705,6 +765,17 @@ const photos =
                 <p className="text-sm text-[var(--bark-muted-text)] mt-2">
                   {current.shelterName || "Unknown shelter"}
                 </p>
+                {current.shelterLocation && (
+              <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                📍 {current.shelterLocation}
+              </p>
+            )}
+
+            {distanceKm !== null && (
+              <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                {distanceKm.toFixed(1)} km away
+              </p>
+            )}
               </div>
 
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
