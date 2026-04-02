@@ -60,7 +60,14 @@ router.get("/", async (req, res) => {
             id: true,
             name: true,
             email: true,
-            shelterProfile: { select: { shelterName: true } },
+            shelterProfile: {
+              select: {
+                shelterName: true,
+                location: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
           },
         },
       },
@@ -69,7 +76,12 @@ router.get("/", async (req, res) => {
     const dogs = raw.map((d) => ({
       ...d,
       shelterName: d.shelter?.shelterProfile?.shelterName || null,
+      shelterLocation: d.shelter?.shelterProfile?.location || null,
+      shelterLatitude: d.shelter?.shelterProfile?.latitude ?? null,
+      shelterLongitude: d.shelter?.shelterProfile?.longitude ?? null,
     }));
+
+    console.log("DOGS ROUTE TEST:", dogs[0]);
 
     res.json({ dogs });
   } catch (e) {

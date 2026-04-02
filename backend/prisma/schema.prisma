@@ -48,6 +48,8 @@ model ShelterProfile {
   shelterName String
   location    String?
   phone       String?
+  latitude    Float?
+  longitude   Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

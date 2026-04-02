@@ -506,6 +506,9 @@ function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, user
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const current = dogs[index];
+  console.log("userLocation", userLocation);
+  console.log("shelter coords", current?.shelterLatitude, current?.shelterLongitude);
+  console.log("shelter location", current?.shelterLocation);
   if (!current) {
   return (
     <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
