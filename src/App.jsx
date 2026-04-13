@@ -64,6 +64,24 @@ const [dogsLoading, setDogsLoading] = useState(false);
 const [seenDogIds, setSeenDogIds] = useState([]);
 const [userLocation, setUserLocation] = useState(null);
 
+const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 useEffect(() => {
   const loadDogs = async () => {
     try {
@@ -115,7 +133,42 @@ useEffect(() => {
   );
 }, []);
 
-  const visibleDogs = dogs.filter((dog) => !seenDogIds.includes(dog.id));
+  const visibleDogs = dogs
+  .filter((dog) => !seenDogIds.includes(dog.id))
+  .sort((a, b) => {
+    const aHasCoords =
+      userLocation &&
+      a.shelterLatitude != null &&
+      a.shelterLongitude != null;
+
+    const bHasCoords =
+      userLocation &&
+      b.shelterLatitude != null &&
+      b.shelterLongitude != null;
+
+    if (aHasCoords && bHasCoords) {
+      const distanceA = getDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        a.shelterLatitude,
+        a.shelterLongitude
+      );
+
+      const distanceB = getDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        b.shelterLatitude,
+        b.shelterLongitude
+      );
+
+      return distanceA - distanceB;
+    }
+
+    if (aHasCoords && !bHasCoords) return -1;
+    if (!aHasCoords && bHasCoords) return 1;
+
+    return 0;
+  });
   // If not logged in -> show auth screens
   if (!user) {
     return (
@@ -506,9 +559,6 @@ function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, user
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const current = dogs[index];
-  console.log("userLocation", userLocation);
-  console.log("shelter coords", current?.shelterLatitude, current?.shelterLongitude);
-  console.log("shelter location", current?.shelterLocation);
   if (!current) {
   return (
     <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
@@ -516,9 +566,7 @@ function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, user
     </div>
   );
 }
-console.log("userLocation", userLocation);
-console.log("shelter coords", current?.shelterLatitude, current?.shelterLongitude);
-console.log("shelter location", current?.shelterLocation);
+
 const photos =
   Array.isArray(current?.photos) && current.photos.length > 0
     ? current.photos
@@ -768,17 +816,25 @@ const distanceKm =
                 <p className="text-sm text-[var(--bark-muted-text)] mt-2">
                   {current.shelterName || "Unknown shelter"}
                 </p>
-                {current.shelterLocation && (
-              <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                📍 {current.shelterLocation}
-              </p>
-            )}
+                {current.shelterLocation ? (
+                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                  📍 {current.shelterLocation}
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                  📍 Location unavailable
+                </p>
+              )}
 
-            {distanceKm !== null && (
-              <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                {distanceKm.toFixed(1)} km away
-              </p>
-            )}
+              {distanceKm !== null ? (
+                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                  {distanceKm.toFixed(1)} km away
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                  Distance unavailable
+                </p>
+              )}
               </div>
 
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
