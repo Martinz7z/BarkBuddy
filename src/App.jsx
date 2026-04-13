@@ -64,6 +64,9 @@ const [dogsLoading, setDogsLoading] = useState(false);
 const [seenDogIds, setSeenDogIds] = useState([]);
 const [userLocation, setUserLocation] = useState(null);
 
+const [matchModal, setMatchModal] = useState(null);
+const [selectedConversationId, setSelectedConversationId] = useState("");
+
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
   const R = 6371;
@@ -260,12 +263,16 @@ useEffect(() => {
               token={token}
               apiBase={API_BASE}
               userLocation={userLocation}
-              onOpenMessages={() => setTab("messages")}
+              onOpenMessages={(conversationId = "") => {
+                setSelectedConversationId(conversationId);
+                setTab("messages");
+              }}
               onDogSeen={(dogId) =>
                 setSeenDogIds((prev) =>
                   prev.includes(dogId) ? prev : [...prev, dogId]
                 )
               }
+              onMatchCreated={(matchData) => setMatchModal(matchData)}
             />
           )
         )}
@@ -282,6 +289,7 @@ useEffect(() => {
             user={user}
             token={token}
             apiBase={API_BASE}
+            initialConversationId={selectedConversationId}
             onLogout={() => {
               localStorage.removeItem("bb_token");
               setToken("");
@@ -298,6 +306,52 @@ useEffect(() => {
 
       
       </main>
+
+      {matchModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-6 text-center">
+            <div className="text-2xl font-bold mb-2">
+              It’s a Match!
+            </div>
+
+            <p className="text-sm text-[var(--bark-muted-text)] mb-4">
+              You liked {matchModal.dogName}
+            </p>
+
+            <div className="w-28 h-28 mx-auto rounded-full overflow-hidden border mb-4">
+              <img
+                src={matchModal.dogImage || "https://placehold.co/200x200?text=Dog"}
+                alt={matchModal.dogName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <p className="text-sm text-[var(--bark-muted-text)] mb-5">
+              Start chatting with {matchModal.shelterName}
+            </p>
+
+            <div className="grid gap-3">
+              <button
+                className="py-3 rounded-2xl text-white bg-[var(--bark-primary)]"
+                onClick={() => {
+                  setMatchModal(null);
+                  setSelectedConversationId(matchModal.conversationId);
+                  setTab("messages");
+                }}
+              >
+                Message now
+              </button>
+
+              <button
+                className="py-3 rounded-2xl border"
+                onClick={() => setMatchModal(null)}
+              >
+                Keep swiping
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom tabs */}
       <nav className="bg-white border-t border-[var(--border)] px-3 py-2">
@@ -554,7 +608,7 @@ function RoleButton({ active, onClick, label }) {
   );
 }
 
-function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, userLocation }) {
+function SwipePage({ dogs, user, token, apiBase, onOpenMessages, onDogSeen, userLocation, onMatchCreated }) {
   const [index, setIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -671,7 +725,13 @@ const distanceKm =
     }
 
     await swipeOut("right");
-    onOpenMessages();
+
+      onMatchCreated({
+        dogName: current.name,
+        dogImage: current.imageUrl,
+        shelterName: current.shelterName || "Shelter",
+        conversationId: convoData.conversation?.id || "",
+      });
   } catch (e) {
     alert("Could not reach backend.");
   }
@@ -1004,9 +1064,9 @@ function FilterPage({ onApply, setDogs }) {
   );
 }
 
-function MessagesPage({ user, token, apiBase, onLogout }) {
+function MessagesPage({ user, token, apiBase, onLogout, initialConversationId }) {
   const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState("");
+  const [activeId, setActiveId] = useState(initialConversationId || "");
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState("list");
@@ -1029,9 +1089,11 @@ function MessagesPage({ user, token, apiBase, onLogout }) {
 
       setConversations(data.conversations || []);
 
-      if (!activeId && data.conversations?.length > 0) {
-        setActiveId(data.conversations[0].id);
-      }
+      if (initialConversationId) {
+          setActiveId(initialConversationId);
+        } else if (!activeId && data.conversations?.length > 0) {
+          setActiveId(data.conversations[0].id);
+        }
     } catch (e) {
       alert("Could not reach backend.");
     } finally {
