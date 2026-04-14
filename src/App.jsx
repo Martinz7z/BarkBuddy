@@ -66,6 +66,8 @@ const [userLocation, setUserLocation] = useState(null);
 
 const [matchModal, setMatchModal] = useState(null);
 const [selectedConversationId, setSelectedConversationId] = useState("");
+const [matchMessage, setMatchMessage] = useState("");
+const [sendingMatchMessage, setSendingMatchMessage] = useState(false);
 
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
@@ -84,6 +86,44 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+  const sendMatchMessage = async () => {
+    const text = matchMessage.trim();
+    const conversationId = matchModal?.conversationId;
+
+    if (!text || !conversationId) return;
+
+    try {
+      setSendingMatchMessage(true);
+
+      const res = await fetch(`${API_BASE}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationId,
+          text,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Failed to send message.");
+        return;
+      }
+
+      setMatchMessage("");
+      setMatchModal(null);
+      setSelectedConversationId(conversationId);
+      setTab("messages");
+    } catch (e) {
+      alert("Could not reach backend.");
+    } finally {
+      setSendingMatchMessage(false);
+    }
+  };
 
 useEffect(() => {
   const loadDogs = async () => {
@@ -272,7 +312,10 @@ useEffect(() => {
                   prev.includes(dogId) ? prev : [...prev, dogId]
                 )
               }
-              onMatchCreated={(matchData) => setMatchModal(matchData)}
+              onMatchCreated={(matchData) => {
+                setMatchMessage("");
+                setMatchModal(matchData);
+              }}
             />
           )
         )}
@@ -326,25 +369,33 @@ useEffect(() => {
               />
             </div>
 
-            <p className="text-sm text-[var(--bark-muted-text)] mb-5">
+            <p className="text-sm text-[var(--bark-muted-text)] mb-4">
               Start chatting with {matchModal.shelterName}
             </p>
 
+            <textarea
+              className="w-full p-3 rounded-2xl border border-[var(--border)] mb-4 text-sm"
+              rows={3}
+              placeholder={`Send a message about ${matchModal.dogName}...`}
+              value={matchMessage}
+              onChange={(e) => setMatchMessage(e.target.value)}
+            />
+
             <div className="grid gap-3">
               <button
-                className="py-3 rounded-2xl text-white bg-[var(--bark-primary)]"
-                onClick={() => {
-                  setMatchModal(null);
-                  setSelectedConversationId(matchModal.conversationId);
-                  setTab("messages");
-                }}
+                className="py-3 rounded-2xl text-white bg-[var(--bark-primary)] disabled:opacity-60"
+                onClick={sendMatchMessage}
+                disabled={sendingMatchMessage || !matchMessage.trim()}
               >
-                Message now
+                {sendingMatchMessage ? "Sending..." : "Send message"}
               </button>
 
               <button
                 className="py-3 rounded-2xl border"
-                onClick={() => setMatchModal(null)}
+                onClick={() => {
+                  setMatchModal(null);
+                  setMatchMessage("");
+                }}
               >
                 Keep swiping
               </button>
