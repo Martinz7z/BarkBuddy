@@ -322,6 +322,7 @@ useEffect(() => {
         {tab === "filter" && (
             <FilterPage
               setDogs={setDogs}
+              userLocation={userLocation}
               onApply={() => {
                 setTab("swipe");
               }}
@@ -1039,10 +1040,31 @@ function CardMedia({ dog, photoIndex, minimal }) {
   );
 }
 
-function FilterPage({ onApply, setDogs }) {
+function FilterPage({ onApply, setDogs, userLocation }) {
   const [breed, setBreed] = useState("");
   const [size, setSize] = useState("Any");
   const [age, setAge] = useState("Any");
+  const [maxDistance, setMaxDistance] = useState("Any");
+
+  const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  
 
   return (
     <div>
@@ -1082,6 +1104,31 @@ function FilterPage({ onApply, setDogs }) {
           <option>Adult</option>
           <option>Senior</option>
         </select>
+        
+        <label className="block text-sm font-medium mb-1">Age</label>
+          <select
+            className="w-full p-3 rounded-xl border border-[var(--border)]"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+          >
+            <option>Any</option>
+            <option>PUPPY</option>
+            <option>ADULT</option>
+            <option>SENIOR</option>
+          </select>
+
+          <label className="block text-sm font-medium mb-1 mt-3">Distance</label>
+          <select
+            className="w-full p-3 rounded-xl border border-[var(--border)]"
+            value={maxDistance}
+            onChange={(e) => setMaxDistance(e.target.value)}
+          >
+            <option>Any</option>
+            <option value="10">Within 10 km</option>
+            <option value="25">Within 25 km</option>
+            <option value="50">Within 50 km</option>
+            <option value="100">Within 100 km</option>
+          </select>
 
         <button
           className="w-full mt-4 py-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95"
@@ -1101,8 +1148,27 @@ function FilterPage({ onApply, setDogs }) {
       return;
     }
 
-    setDogs(data.dogs || []);
-    onApply();
+          let filteredDogs = data.dogs || [];
+
+      if (maxDistance !== "Any" && userLocation) {
+        filteredDogs = filteredDogs.filter((dog) => {
+          if (dog.shelterLatitude == null || dog.shelterLongitude == null) {
+            return false;
+          }
+
+          const distance = getDistanceKm(
+            userLocation.latitude,
+            userLocation.longitude,
+            dog.shelterLatitude,
+            dog.shelterLongitude
+          );
+
+          return distance <= Number(maxDistance);
+        });
+      }
+
+      setDogs(filteredDogs);
+      onApply();
   } catch (e) {
     alert("Could not reach backend.");
   }
