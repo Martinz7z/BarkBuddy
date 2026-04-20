@@ -1093,17 +1093,7 @@ function FilterPage({ onApply, setDogs, userLocation }) {
           <option>Large</option>
         </select>
 
-        <label className="block text-sm font-medium mb-1">Age</label>
-        <select
-          className="w-full p-3 rounded-xl border border-[var(--border)]"
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-        >
-          <option>Any</option>
-          <option>Puppy</option>
-          <option>Adult</option>
-          <option>Senior</option>
-        </select>
+      
         
         <label className="block text-sm font-medium mb-1">Age</label>
           <select
