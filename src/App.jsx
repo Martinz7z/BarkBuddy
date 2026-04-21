@@ -859,17 +859,15 @@ const distanceKm =
               NOPE
             </motion.div>
 
-            <div className="relative h-[68%]">
+            <div className="relative h-[46%] shrink-0">
               <img
                 src={photos[photoIndex] || photos[0]}
                 alt={`${current.name}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-               e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
+                  e.currentTarget.src = "https://placehold.co/800x1200?text=BarkBuddy";
                 }}
-                />
-                
-              
+              />
 
               {photos.length > 1 && (
                 <>
@@ -908,7 +906,7 @@ const distanceKm =
               </div>
             </div>
 
-            <div className="h-[32%] p-4 flex flex-col justify-between">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -925,31 +923,32 @@ const distanceKm =
                   </span>
                 </div>
 
-                <p className="text-sm text-[var(--bark-muted-text)] mt-2">
+                <p className="text-sm text-[var(--bark-muted-text)] mt-2 break-words">
                   {current.shelterName || "Unknown shelter"}
                 </p>
-                {current.shelterLocation ? (
-                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                  📍 {current.shelterLocation}
-                </p>
-              ) : (
-                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                  📍 Location unavailable
-                </p>
-              )}
 
-              {distanceKm !== null ? (
-                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                  {distanceKm.toFixed(1)} km away
-                </p>
-              ) : (
-                <p className="text-xs text-[var(--bark-muted-text)] mt-1">
-                  Distance unavailable
-                </p>
-              )}
+                {current.shelterLocation ? (
+                  <p className="text-xs text-[var(--bark-muted-text)] mt-1 break-words">
+                    📍 {current.shelterLocation}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                    📍 Location unavailable
+                  </p>
+                )}
+
+                {distanceKm !== null ? (
+                  <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                    {distanceKm.toFixed(1)} km away
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--bark-muted-text)] mt-1">
+                    Distance unavailable
+                  </p>
+                )}
               </div>
 
-              <div className="flex flex-wrap gap-2 mt-2 text-xs">
+              <div className="flex flex-wrap gap-1.5 mt-3 text-xs">
                 {current.vaccinated && (
                   <span className="px-2 py-1 rounded-full bg-[var(--bark-secondary)]">
                     Vaccinated
@@ -986,8 +985,10 @@ const distanceKm =
                   </span>
                 )}
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="shrink-0 p-4 pt-2 bg-white">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   className="py-3 rounded-2xl border border-[var(--border)] bg-white hover:bg-[var(--bark-secondary)]"
                   onClick={() => swipeOut("left")}
