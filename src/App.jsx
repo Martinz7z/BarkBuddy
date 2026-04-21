@@ -3,7 +3,8 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
 
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE || "/api";
+
 
 function roleUiToApi(roleUi) {
   return roleUi === "Shelter" ? "SHELTER" : "BASIC_USER";
@@ -215,8 +216,8 @@ useEffect(() => {
   // If not logged in -> show auth screens
   if (!user) {
     return (
-      <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-[var(--border)]">
+     <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex items-center justify-center p-3 sm:p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow p-4 sm:p-6 border border-[var(--border)]">
           <div className="mb-6 text-center">
             <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
               BarkBuddy
@@ -258,7 +259,7 @@ useEffect(() => {
 
   
   return (
-    <div className="h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col">
+    <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col">
       {/* Top bar */}
       <header className="px-4 py-3 bg-white border-b border-[var(--border)] flex items-center justify-between">
         <div>
@@ -286,7 +287,7 @@ useEffect(() => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-4">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4">
         {tab === "swipe" && (
           dogsLoading ? (
             <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
@@ -819,7 +820,7 @@ const distanceKm =
       </div>
 
       <div className="flex-1 flex items-center justify-center">
-        <div className="relative w-full max-w-md aspect-[9/16]">
+        <div className="relative w-full max-w-sm sm:max-w-md aspect-[9/16]">
           {third && (
             <div
               className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-sm overflow-hidden"
@@ -1299,7 +1300,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h2
           className="text-2xl font-bold"
           style={{ fontFamily: "var(--font-heading)" }}
@@ -1596,7 +1597,7 @@ function AdminPage({ token, apiBase }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
+      <h2 className="text-xl sm:text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
         Shelter Admin
       </h2>
 
