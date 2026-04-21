@@ -259,7 +259,7 @@ useEffect(() => {
 
   
   return (
-    <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col">
+    <div className="min-h-screen bg-[var(--bark-secondary)] text-[var(--bark-text)] flex flex-col max-w-screen overflow-x-hidden">
       {/* Top bar */}
       <header className="px-4 py-3 bg-white border-b border-[var(--border)] flex items-center justify-between">
         <div>
@@ -287,7 +287,7 @@ useEffect(() => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-3 sm:p-4">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4 pb-24">
         {tab === "swipe" && (
           dogsLoading ? (
             <div className="text-center text-sm text-[var(--bark-muted-text)] py-10">
@@ -407,7 +407,7 @@ useEffect(() => {
       )}
 
       {/* Bottom tabs */}
-      <nav className="bg-white border-t border-[var(--border)] px-3 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[var(--border)] px-3 py-2">
         <div className={`grid ${isShelter ? "grid-cols-4" : "grid-cols-3"} gap-2`}>
           <TabButton active={tab === "filter"} onClick={() => setTab("filter")} label="Filter" icon="🔎" />
           <TabButton active={tab === "swipe"} onClick={() => setTab("swipe")} label="Swipe" icon="🐶" />
@@ -806,10 +806,9 @@ const distanceKm =
   setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h2
-          className="text-2xl font-bold"
+    <div className="max-w-md mx-auto h-full flex flex-col">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl sm:text-2xl font-bold"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           Discover
@@ -819,8 +818,8 @@ const distanceKm =
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center">
-        <div className="relative w-full max-w-sm sm:max-w-md aspect-[9/16]">
+      <div className="flex-1 flex items-start justify-center min-h-0 pb-24">
+        <div className="relative w-full max-w-sm sm:max-w-md aspect-[9/15] sm:aspect-[9/16]">
           {third && (
             <div
               className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-sm overflow-hidden"
