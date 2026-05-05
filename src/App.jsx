@@ -839,7 +839,7 @@ const distanceKm =
           )}
 
           <motion.div
-            className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-xl overflow-hidden touch-pan-y"
+            className="absolute inset-0 rounded-3xl border border-[var(--border)] bg-white shadow-xl overflow-hidden touch-pan-y flex flex-col"
             style={{ x, rotate }}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
