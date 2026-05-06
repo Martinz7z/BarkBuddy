@@ -1079,6 +1079,7 @@ function CardMedia({ dog, photoIndex, minimal }) {
 
 function FilterPage({ onApply, setDogs, userLocation }) {
   const [breed, setBreed] = useState("");
+  const [breedOptions, setBreedOptions] = useState([]);
   const [size, setSize] = useState("Any");
   const [age, setAge] = useState("Any");
   const [maxDistance, setMaxDistance] = useState("Any");
@@ -1101,6 +1102,30 @@ function FilterPage({ onApply, setDogs, userLocation }) {
     return R * c;
   };
 
+  useEffect(() => {
+  const loadBreeds = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dogs`);
+      const data = await res.json();
+
+      if (!res.ok) return;
+
+      const uniqueBreeds = [
+        ...new Set(
+          (data.dogs || [])
+            .map((dog) => dog.breed)
+            .filter(Boolean)
+        ),
+      ].sort();
+
+      setBreedOptions(uniqueBreeds);
+    } catch (e) {
+      console.error("Failed to load breeds", e);
+    }
+  };
+
+  loadBreeds();
+}, []);
   
 
   return (
@@ -1111,12 +1136,18 @@ function FilterPage({ onApply, setDogs, userLocation }) {
 
       <div className="bg-white rounded-2xl shadow border border-[var(--border)] p-4">
         <label className="block text-sm font-medium mb-1">Breed</label>
-        <input
+        <select
           className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
-          placeholder="e.g. Labrador"
           value={breed}
           onChange={(e) => setBreed(e.target.value)}
-        />
+        >
+          <option value="">Any breed</option>
+          {breedOptions.map((breedName) => (
+            <option key={breedName} value={breedName}>
+              {breedName}
+            </option>
+          ))}
+</select>
 
         <label className="block text-sm font-medium mb-1">Size</label>
         <select
@@ -1649,12 +1680,18 @@ function AdminPage({ token, apiBase }) {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <input
-          className="w-full p-3 rounded-xl border border-[var(--border)]"
-          placeholder="Breed (required)"
-          value={breed}
-          onChange={(e) => setBreed(e.target.value)}
-        />
+        <select
+  className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
+  value={breed}
+  onChange={(e) => setBreed(e.target.value)}
+>
+  <option value="">Any breed</option>
+  {breedOptions.map((breedName) => (
+    <option key={breedName} value={breedName}>
+      {breedName}
+    </option>
+  ))}
+</select>
 
         <div>
           <label className="block text-sm font-medium mb-1">Dog image</label>
