@@ -5,6 +5,26 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
+function getErrorMessage(error, fallback = "Something went wrong.") {
+  if (!error) return fallback;
+
+  if (typeof error === "string") return error;
+
+  if (typeof error === "object") {
+    if (error.formErrors?.length) return error.formErrors.join(", ");
+
+    if (error.fieldErrors) {
+      const firstField = Object.keys(error.fieldErrors)[0];
+      const firstError = error.fieldErrors[firstField]?.[0];
+
+      if (firstError) return `${firstField}: ${firstError}`;
+    }
+
+    return fallback;
+  }
+
+  return fallback;
+}
 
 function roleUiToApi(roleUi) {
   return roleUi === "Shelter" ? "SHELTER" : "BASIC_USER";
@@ -111,7 +131,7 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error || "Failed to send message.");
+        alert(getErrorMessage(data?.error , "Failed to send message."));
         return;
       }
 
@@ -271,7 +291,7 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Only show Settings icon on Messages tab (as you wanted earlier) */}
+       
         {tab === "messages" ? (
           <button
             className="px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bark-secondary)]"
@@ -477,7 +497,7 @@ function LoginCard({ onLogin, onSwitch }) {
             const data = await res.json();
 
             if (!res.ok) {
-              return alert(data?.error || "Login failed.");
+              return alert(getErrorMessage(data?.error , "Login failed."));
             }
 
             // Optional: ensure role selection matches account role (helps UX)
@@ -515,6 +535,7 @@ function RegisterCard({ onRegister, onSwitch }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [shelterName, setShelterName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -572,15 +593,23 @@ function RegisterCard({ onRegister, onSwitch }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
+      <input
+        className="w-full p-3 rounded-xl border border-[var(--border)] mb-4"
+        placeholder="Confirm password"
+        type="password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+      />
 
       <button
-        className="w-full p-3 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95 disabled:opacity-60"
+        className="w-full p-3 mt-2 rounded-xl text-white font-semibold bg-[var(--bark-primary)] hover:opacity-95 disabled:opacity-60"
         disabled={submitting}
         onClick={async () => {
           if (!name || !email || !password) return alert("Please fill in all fields.");
           if (password.length < 8) return alert("Password must be at least 8 characters.");
+          if (password !== confirmPassword) return alert("Passwords do not match.");
           if (isShelter && shelterName.trim().length < 2) return alert("Please enter your shelter name.");
-
+         
           try {
             setSubmitting(true);
 
@@ -600,7 +629,7 @@ function RegisterCard({ onRegister, onSwitch }) {
 
             if (!res.ok) {
               // Prisma unique constraint errors arrive as 409 from our backend
-              return alert(data?.error || "Registration failed.");
+              return alert(getErrorMessage(data?.error , "Registration failed."));
             }
 
             onRegister({
@@ -906,7 +935,7 @@ const distanceKm =
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3">
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -985,6 +1014,13 @@ const distanceKm =
                   </span>
                 )}
               </div>
+
+
+              {current.description && (
+              <p className="text-xs text-[var(--bark-muted-text)] mt-1 max-h-10 overflow-hidden">
+                {current.description}
+              </p>
+)}
             </div>
 
             <div className="shrink-0 p-4 pt-2 bg-white">
@@ -1135,7 +1171,7 @@ function FilterPage({ onApply, setDogs, userLocation }) {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data?.error || "Failed to filter dogs.");
+      alert(getErrorMessage(data?.error , "Failed to filter dogs."));
       return;
     }
 
@@ -1191,7 +1227,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error || "Failed to load conversations.");
+        alert(getErrorMessage(data?.error , "Failed to load conversations."));
         return;
       }
 
@@ -1220,7 +1256,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error || "Failed to load messages.");
+        alert(getErrorMessage(data?.error , "Failed to load messages."));
         return;
       }
 
@@ -1286,7 +1322,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data?.error || "Failed to send message.");
+        alert(getErrorMessage(data?.error , "Failed to send message."));
         return;
       }
 
@@ -1299,7 +1335,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-[calc(100vh-150px)] flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <h2
           className="text-2xl font-bold"
@@ -1344,7 +1380,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
   ))}
 </div>
 
-      <div className="flex-1 bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex">
+      <div className="flex-1 min-h-0 bg-white rounded-2xl border border-[var(--border)] overflow-hidden flex">
         <div
           className={`w-full md:w-80 border-r border-[var(--border)] ${
             mode === "chat" ? "hidden md:block" : "block"
@@ -1354,7 +1390,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
             Conversations
           </div>
 
-          <div className="overflow-y-auto h-full">
+          <div className="overflow-y-auto h-[calc(100%-49px)]">
             {loading && conversations.length === 0 ? (
               <div className="p-4 text-sm text-[var(--bark-muted-text)]">
                 Loading conversations...
@@ -1416,7 +1452,7 @@ function MessagesPage({ user, token, apiBase, onLogout, initialConversationId })
             </div>
           </div>
 
-          <div className="flex-1 p-4 space-y-2 overflow-y-auto bg-[var(--bark-secondary)]">
+          <div className="flex-1 min-h-0 p-4 space-y-2 overflow-y-auto bg-[var(--bark-secondary)]">
             {!activeId ? (
               <div className="text-sm text-[var(--bark-muted-text)]">
                 Select a conversation to view messages.
@@ -1490,6 +1526,7 @@ function AdminPage({ token, apiBase }) {
   const [ageCategory, setAgeCategory] = useState("ADULT");
   const [sizeCategory, setSizeCategory] = useState("MEDIUM");
   const [imageUrl, setImageUrl] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
 
   const [vaccinated, setVaccinated] = useState(false);
   const [neutered, setNeutered] = useState(false);
@@ -1506,7 +1543,7 @@ function AdminPage({ token, apiBase }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) return alert(data?.error || "Failed to load your dogs.");
+      if (!res.ok) return alert(getErrorMessage(data?.error , "Failed to load your dogs."));
       setDogs(data.dogs || []);
     } catch (e) {
       alert("Could not reach backend.");
@@ -1548,7 +1585,7 @@ function AdminPage({ token, apiBase }) {
       });
 
      const data = await res.json();
-    if (!res.ok) return alert(data?.error || "Failed to create dog.");
+    if (!res.ok) return alert(getErrorMessage(data?.error , "Failed to create dog."));
 
       const newDog = data.dog;
 
@@ -1558,6 +1595,7 @@ function AdminPage({ token, apiBase }) {
       setBreed("");
       setDescription("");
       setImageUrl("");
+      setImagePreview("");
       setAgeCategory("ADULT");
       setSizeCategory("MEDIUM");
       setVaccinated(false);
@@ -1586,7 +1624,7 @@ function AdminPage({ token, apiBase }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) return alert(data?.error || "Failed to archive dog.");
+      if (!res.ok) return alert(getErrorMessage(data?.error , "Failed to archive dog."));
       await loadMine();
     } catch (e) {
       alert("Could not reach backend.");
@@ -1618,12 +1656,37 @@ function AdminPage({ token, apiBase }) {
           onChange={(e) => setBreed(e.target.value)}
         />
 
-        <input
-          className="w-full p-3 rounded-xl border border-[var(--border)]"
-          placeholder="Image URL (optional)"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-        />
+        <div>
+          <label className="block text-sm font-medium mb-1">Dog image</label>
+
+          <input
+            className="w-full p-3 rounded-xl border border-[var(--border)]"
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+
+              reader.onloadend = () => {
+                const result = reader.result;
+                setImageUrl(result);
+                setImagePreview(result);
+              };
+
+              reader.readAsDataURL(file);
+            }}
+          />
+
+          {imagePreview && (
+            <img
+              src={imagePreview}
+              alt="Dog preview"
+              className="mt-3 w-full h-48 object-cover rounded-xl border border-[var(--border)]"
+            />
+          )}
+        </div>
 
         <textarea
           className="w-full p-3 rounded-xl border border-[var(--border)]"
