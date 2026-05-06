@@ -1680,18 +1680,12 @@ function AdminPage({ token, apiBase }) {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <select
-  className="w-full p-3 rounded-xl border border-[var(--border)] mb-3"
-  value={breed}
-  onChange={(e) => setBreed(e.target.value)}
->
-  <option value="">Any breed</option>
-  {breedOptions.map((breedName) => (
-    <option key={breedName} value={breedName}>
-      {breedName}
-    </option>
-  ))}
-</select>
+        <input
+          className="w-full p-3 rounded-xl border border-[var(--border)]"
+          placeholder="Breed (required)"
+          value={breed}
+          onChange={(e) => setBreed(e.target.value)}
+        />
 
         <div>
           <label className="block text-sm font-medium mb-1">Dog image</label>
